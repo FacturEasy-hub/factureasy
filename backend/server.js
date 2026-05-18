@@ -41,6 +41,9 @@ const app = express();
 // ─── Sécurité : helmet ─────────────────────────────────────────────────────────
 try {
   const helmet = require('helmet');
+  // CSP désactivée sur /backoffice (panel admin avec scripts inline)
+  app.use('/backoffice', helmet({ contentSecurityPolicy: false }));
+  // CSP stricte partout ailleurs
   app.use(helmet());
 } catch (_) { /* helmet optionnel — npm install helmet */ }
 
@@ -61,6 +64,8 @@ app.use(cors({
     if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
     // Autoriser tous les domaines Vercel du projet (previews + production)
     if (/\.vercel\.app$/.test(origin)) return cb(null, true);
+    // Autoriser le backend lui-même (admin panel servi depuis onrender.com)
+    if (/\.onrender\.com$/.test(origin)) return cb(null, true);
     cb(new Error('Origin non autorisée par CORS : ' + origin));
   },
   credentials: true,
@@ -438,7 +443,8 @@ app.use(['/factures', '/finances', '/stats'], readOnly);
 
 // ─── Backoffice admin (fichier statique servi depuis /backoffice/) ─────────────
 // Accessible à : https://factureasy-backend.onrender.com/backoffice/
-app.use('/backoffice', express.static(path.join(__dirname, '../admin')));
+// ⚠️  Les fichiers admin sont dans backend/public/backoffice/ (dans le build context Docker)
+app.use('/backoffice', express.static(path.join(__dirname, 'public/backoffice')));
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 

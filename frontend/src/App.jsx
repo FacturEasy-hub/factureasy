@@ -2619,6 +2619,7 @@ function ChorusStatus() {
 function SectionPlans({ company }) {
   const [planInfo, setPlanInfo] = useState(null);
   const [loading, setLoading] = useState('');
+  const [stripeError, setStripeError] = useState('');
 
   useEffect(() => {
     apiCall('/auth/me').then((r) => r.ok ? r.json() : null).then((d) => { if (d) setPlanInfo(d); }).catch(() => {});
@@ -2638,26 +2639,40 @@ function SectionPlans({ company }) {
 
   const handleSelect = async (planKey) => {
     setLoading(planKey);
+    setStripeError('');
     try {
       const res = await apiCall('/stripe/create-checkout-session', { method: 'POST', body: JSON.stringify({ plan: planKey }) });
       const data = await res.json();
       if (res.ok && data.url) { window.location.href = data.url; return; }
-    } catch {}
+      setStripeError(data.error || 'Erreur lors de la création de la session de paiement');
+    } catch (e) {
+      setStripeError('Impossible de joindre le serveur de paiement');
+    }
     setLoading('');
   };
 
   const handlePortal = async () => {
     setLoading('portal');
+    setStripeError('');
     try {
       const res = await apiCall('/stripe/portal', { method: 'POST' });
       const data = await res.json();
       if (res.ok && data.url) { window.location.href = data.url; return; }
-    } catch {}
+      setStripeError(data.error || 'Erreur portail de facturation');
+    } catch (e) {
+      setStripeError('Impossible de joindre le serveur de paiement');
+    }
     setLoading('');
   };
 
   return (
     <div className="fade-in" style={{ padding: '28px 32px' }}>
+      {/* Erreur Stripe */}
+      {stripeError && (
+        <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 10, padding: '12px 18px', marginBottom: 20, color: '#dc2626', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span>⚠️</span> {stripeError}
+        </div>
+      )}
       {/* Bandeau plan actuel */}
       {planInfo && (
         <div style={{ background: isTrialing ? '#ede9fe' : '#f0fdf4', border: `1.5px solid ${isTrialing ? '#7c3aed' : '#16a34a'}`, borderRadius: 12, padding: '16px 24px', marginBottom: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
