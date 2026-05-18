@@ -10,6 +10,7 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'factureasy-dev-secret
 
 const express    = require('express');
 const cors       = require('cors');
+const path       = require('path');
 const axios      = require('axios');
 const pool       = require('./db');
 
@@ -434,6 +435,10 @@ app.use('/auth', comptableRouter);
 // Appliquer readOnly sur les routes protégées pour le rôle comptable
 // (les routes GET restent accessibles, les mutations sont bloquées)
 app.use(['/factures', '/finances', '/stats'], readOnly);
+
+// ─── Backoffice admin (fichier statique servi depuis /backoffice/) ─────────────
+// Accessible à : https://factureasy-backend.onrender.com/backoffice/
+app.use('/backoffice', express.static(path.join(__dirname, '../admin')));
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 

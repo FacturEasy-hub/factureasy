@@ -2,7 +2,7 @@
 /**
  * FacturEasy — Routes Stripe
  * ───────────────────────────
- * POST /stripe/create-checkout-session  → Crée une session Checkout (essai 730j)
+ * POST /stripe/create-checkout-session  → Crée une session Checkout (essai 60j)
  * POST /stripe/webhook                  → Webhooks Stripe (signature vérifiée)
  * POST /stripe/portal                   → Portail client Stripe (gérer abonnement)
  *
@@ -26,7 +26,7 @@ const router = express.Router();
 // ─── Config ───────────────────────────────────────────────────────────────────
 const STRIPE_KEY            = process.env.STRIPE_SECRET_KEY     || '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
-const TRIAL_DAYS            = 730;
+const TRIAL_DAYS            = 60;
 
 const PRICE_MAP = {
   solo:     process.env.STRIPE_PRICE_SOLO     || '',

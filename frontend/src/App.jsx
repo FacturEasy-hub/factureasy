@@ -2692,7 +2692,7 @@ function SectionPlans({ company }) {
               <div style={{ marginBottom: 16 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: plan.color, background: plan.bg, display: 'inline-block', padding: '3px 12px', borderRadius: 20, marginBottom: 10 }}>{plan.label}</div>
                 <div style={{ fontSize: 30, fontWeight: 800, color: '#0f172a' }}>{plan.price}€<span style={{ fontSize: 13, fontWeight: 400, color: '#64748b' }}>/mois</span></div>
-                {!planInfo?.stripe_customer_id && <div style={{ fontSize: 11, color: '#10b981', fontWeight: 600, marginTop: 4 }}>✓ 2 ans offerts · Aucun prélèvement</div>}
+                {!planInfo?.stripe_customer_id && <div style={{ fontSize: 11, color: '#10b981', fontWeight: 600, marginTop: 4 }}>✓ 60 jours offerts · Aucun prélèvement</div>}
               </div>
               <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {plan.features.map((f) => (
@@ -2787,7 +2787,7 @@ function PlanSelectionScreen({ company, onSkip }) {
           Bienvenue, {company?.nom} 👋
         </div>
         <div style={{ fontSize: 15, color: '#64748b', maxWidth: 480, margin: '0 auto' }}>
-          Choisissez votre plan — tous incluent <strong style={{ color: '#4f46e5' }}>2 ans d'essai gratuit</strong>, sans carte bancaire requise pour commencer.
+          Choisissez votre plan — tous incluent <strong style={{ color: '#4f46e5' }}>60 jours d'essai gratuit</strong>, sans carte bancaire requise pour commencer.
         </div>
       </div>
 
@@ -2815,7 +2815,7 @@ function PlanSelectionScreen({ company, onSkip }) {
             <div>
               <div style={{ fontSize: 13, fontWeight: 600, color: plan.color, background: plan.bg, display: 'inline-block', padding: '3px 12px', borderRadius: 20, marginBottom: 8 }}>{plan.label}</div>
               <div style={{ fontSize: 28, fontWeight: 800, color: '#0f172a' }}>{plan.price}<span style={{ fontSize: 14, fontWeight: 500, color: '#64748b' }}>/mois</span></div>
-              <div style={{ fontSize: 12, color: '#10b981', fontWeight: 600, marginTop: 4 }}>✓ 2 ans offerts — aucun prélèvement</div>
+              <div style={{ fontSize: 12, color: '#10b981', fontWeight: 600, marginTop: 4 }}>✓ 60 jours offerts — aucun prélèvement</div>
             </div>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
               {plan.features.map((f) => (

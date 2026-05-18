@@ -2,7 +2,7 @@
 /**
  * FacturEasy — Stripe Setup Script
  * ─────────────────────────────────
- * Crée les 4 produits + prix avec 730 jours d'essai gratuit.
+ * Crée les 4 produits + prix avec 60 jours d'essai gratuit.
  * À exécuter UNE SEULE FOIS depuis ton terminal local.
  *
  * Usage:
@@ -26,7 +26,7 @@ if (!STRIPE_KEY) {
   process.exit(1);
 }
 
-const TRIAL_DAYS = 730; // 2 ans
+const TRIAL_DAYS = 60; // 60 jours
 
 // ─── Plans ────────────────────────────────────────────────────────────────────
 const PLANS = [
@@ -91,7 +91,7 @@ function stripePost(path, data) {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
   console.log(`\n🚀  FacturEasy — Configuration Stripe`);
-  console.log(`   Essai gratuit : ${TRIAL_DAYS} jours (2 ans)`);
+  console.log(`   Essai gratuit : ${TRIAL_DAYS} jours (60 jours)`);
   console.log(`   Mode : ${STRIPE_KEY.startsWith('sk_live') ? '🔴 PRODUCTION' : '🟡 TEST'}\n`);
 
   const results = [];
