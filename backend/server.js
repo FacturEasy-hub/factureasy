@@ -56,8 +56,10 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
   .split(',').map(o => o.trim());
 app.use(cors({
   origin: function(origin, cb) {
-    // Autoriser les requêtes sans origin (ex: curl, Postman en dev)
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    if (!origin) return cb(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    // Autoriser tous les domaines Vercel du projet (previews + production)
+    if (/\.vercel\.app$/.test(origin)) return cb(null, true);
     cb(new Error('Origin non autorisée par CORS : ' + origin));
   },
   credentials: true,
