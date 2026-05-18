@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FacturEasy — Administration</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+    /* ── Login ── */
+    #login-screen {
+      display: flex; align-items: center; justify-content: center; min-height: 100vh;
+    }
+    .login-card {
+      background: #1a1d2e; border: 1px solid #2d3148; border-radius: 12px;
+      padding: 40px; width: 380px; text-align: center;
+    }
+    .login-card h1 { font-size: 22px; margin-bottom: 6px; }
+    .login-card p  { font-size: 13px; color: #64748b; margin-bottom: 28px; }
+    .login-card input {
+      width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid #2d3148;
+      background: #0f1117; color: #e2e8f0; font-size: 14px; margin-bottom: 14px;
+    }
+    .btn-primary {
+      width: 100%; padding: 11px; border-radius: 8px; border: none;
+      background: #4f46e5; color: #fff; font-size: 14px; cursor: pointer; font-weight: 500;
+    }
+    .btn-primary:hover { background: #4338ca; }
+    .error-msg { color: #f87171; font-size: 12px; margin-top: 10px; }
+
+    /* ── App ── */
+    #app { display: none; }
+    .topbar {
+      background: #1a1d2e; border-bottom: 1px solid #2d3148;
+      padding: 14px 28px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar-logo { font-size: 16px; font-weight: 600; color: #a5b4fc; }
+    .topbar-badge {
+      background: #312e81; color: #a5b4fc; font-size: 11px;
+      padding: 3px 10px; border-radius: 20px; margin-left: 10px;
+    }
+    .topbar-right { display: flex; align-items: center; gap: 16px; }
+    .btn-logout {
+      background: transparent; border: 1px solid #374151; color: #9ca3af;
+      padding: 6px 14px; border-radius: 6px; font-size: 12px; cursor: pointer;
+    }
+    .btn-logout:hover { border-color: #6b7280; color: #e2e8f0; }
+
+    .nav-tabs {
+      display: flex; gap: 2px; padding: 16px 28px 0;
+      border-bottom: 1px solid #2d3148; background: #1a1d2e;
+    }
+    .nav-tab {
+      padding: 8px 18px; font-size: 13px; color: #64748b; cursor: pointer;
+      border-bottom: 2px solid transparent; background: none; border-top: none;
+      border-left: none; border-right: none; margin-bottom: -1px;
+    }
+    .nav-tab.active { color: #a5b4fc; border-bottom-color: #4f46e5; }
+    .nav-tab:hover { color: #e2e8f0; }
+
+    .content { padding: 28px; }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 28px; }
+    .kpi-card { background: #1a1d2e; border: 1px solid #2d3148; border-radius: 10px; padding: 18px 20px; }
+    .kpi-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .kpi-value { font-size: 28px; font-weight: 600; color: #e2e8f0; }
+    .kpi-sub { font-size: 12px; color: #64748b; margin-top: 4px; }
+    .kpi-green { color: #34d399; }
+    .kpi-red   { color: #f87171; }
+    .kpi-blue  { color: #60a5fa; }
+    .kpi-purple{ color: #a78bfa; }
+
+    .section-title { font-size: 15px; font-weight: 500; color: #e2e8f0; margin-bottom: 14px; }
+
+    .table-wrap { background: #1a1d2e; border: 1px solid #2d3148; border-radius: 10px; overflow: hidden; margin-bottom: 24px; }
+    .table-header { padding: 14px 20px; border-bottom: 1px solid #2d3148; display: flex; align-items: center; justify-content: space-between; }
+    .table-header-title { font-size: 13px; font-weight: 500; color: #e2e8f0; }
+    .search-input {
+      padding: 6px 12px; border-radius: 6px; border: 1px solid #2d3148;
+      background: #0f1117; color: #e2e8f0; font-size: 12px; width: 220px;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 16px; text-align: left; border-bottom: 1px solid #2d3148; }
+    td { font-size: 13px; color: #cbd5e1; padding: 12px 16px; border-bottom: 1px solid #1e2235; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #1e2235; }
+
+    .badge { display: inline-block; font-size: 11px; padding: 2px 9px; border-radius: 20px; font-weight: 500; }
+    .badge-green  { background: #064e3b; color: #34d399; }
+    .badge-blue   { background: #1e3a5f; color: #60a5fa; }
+    .badge-orange { background: #451a03; color: #fb923c; }
+    .badge-red    { background: #450a0a; color: #f87171; }
+
+    .btn-sm {
+      padding: 4px 10px; font-size: 11px; border-radius: 5px; cursor: pointer;
+      border: 1px solid #374151; background: transparent; color: #9ca3af;
+    }
+    .btn-sm:hover { border-color: #6b7280; color: #e2e8f0; }
+    .btn-sm-danger { border-color: #7f1d1d; color: #f87171; }
+    .btn-sm-danger:hover { background: #7f1d1d; color: #fca5a5; }
+
+    .pagination { display: flex; align-items: center; gap: 8px; padding: 14px 20px; justify-content: flex-end; font-size: 12px; color: #64748b; }
+    .page-btn { padding: 4px 10px; border-radius: 5px; border: 1px solid #2d3148; background: transparent; color: #9ca3af; cursor: pointer; }
+    .page-btn:hover { border-color: #4f46e5; color: #a5b4fc; }
+    .page-btn.active { background: #4f46e5; border-color: #4f46e5; color: #fff; }
+    .page-btn:disabled { opacity: 0.3; cursor: default; }
+
+    .filter-bar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    .filter-select {
+      padding: 7px 12px; border-radius: 6px; border: 1px solid #2d3148;
+      background: #1a1d2e; color: #e2e8f0; font-size: 12px;
+    }
+    .filter-input {
+      padding: 7px 12px; border-radius: 6px; border: 1px solid #2d3148;
+      background: #1a1d2e; color: #e2e8f0; font-size: 12px; width: 200px;
+    }
+    .btn-filter {
+      padding: 7px 16px; border-radius: 6px; border: none;
+      background: #4f46e5; color: #fff; font-size: 12px; cursor: pointer;
+    }
+
+    .loading { text-align: center; padding: 40px; color: #4b5563; font-size: 14px; }
+    .empty   { text-align: center; padding: 40px; color: #4b5563; font-size: 13px; }
+
+    .detail-modal {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      display: flex; align-items: center; justify-content: center; z-index: 100;
+    }
+    .detail-box {
+      background: #1a1d2e; border: 1px solid #2d3148; border-radius: 12px;
+      padding: 28px; width: 680px; max-height: 80vh; overflow-y: auto;
+    }
+    .detail-box h2 { font-size: 16px; margin-bottom: 18px; display: flex; justify-content: space-between; }
+    .detail-box .close-btn { cursor: pointer; color: #64748b; font-size: 20px; background: none; border: none; color: #9ca3af; }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; margin-bottom: 16px; }
+    .detail-row label { font-size: 11px; color: #64748b; display: block; margin-bottom: 2px; }
+    .detail-row span  { font-size: 13px; color: #e2e8f0; }
+  </style>
+</head>
+<body>
+
+<!-- ── Login ── -->
+<div id="login-screen">
+  <div class="login-card">
+    <h1>💼 FacturEasy</h1>
+    <p>Accès administrateur</p>
+    <input type="password" id="admin-secret" placeholder="Secret administrateur" />
+    <button class="btn-primary" onclick="adminLogin()">Se connecter</button>
+    <div class="error-msg" id="login-error"></div>
+  </div>
+</div>
+
+<!-- ── App ── -->
+<div id="app">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;">
+      <span class="topbar-logo">💼 FacturEasy</span>
+      <span class="topbar-badge">Admin</span>
+    </div>
+    <div class="topbar-right">
+      <span id="topbar-date" style="font-size:12px;color:#4b5563;"></span>
+      <button class="btn-logout" onclick="logout()">Déconnexion</button>
+    </div>
+  </div>
+
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('dashboard', this)">Dashboard</button>
+    <button class="nav-tab" onclick="switchTab('entreprises', this)">Entreprises</button>
+    <button class="nav-tab" onclick="switchTab('factures', this)">Factures</button>
+  </div>
+
+  <div class="content">
+
+    <!-- ── Onglet Dashboard ── -->
+    <div id="tab-dashboard">
+      <div class="kpi-grid" id="kpi-grid">
+        <div class="loading">Chargement des stats…</div>
+      </div>
+    </div>
+
+    <!-- ── Onglet Entreprises ── -->
+    <div id="tab-entreprises" style="display:none;">
+      <div class="filter-bar">
+        <input class="filter-input" id="search-entreprises" placeholder="Rechercher par nom ou SIRET…" />
+        <button class="btn-filter" onclick="loadEntreprises(1)">Rechercher</button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-header">
+          <span class="table-header-title">Toutes les entreprises</span>
+          <span id="ent-total" style="font-size:12px;color:#4b5563;"></span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>SIRET</th><th>Nom</th><th>Email</th>
+              <th>Factures</th><th>CA TTC</th><th>Inscription</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="ent-tbody"><tr><td colspan="7" class="loading">Chargement…</td></tr></tbody>
+        </table>
+        <div class="pagination" id="ent-pagination"></div>
+      </div>
+    </div>
+
+    <!-- ── Onglet Factures ── -->
+    <div id="tab-factures" style="display:none;">
+      <div class="filter-bar">
+        <select class="filter-select" id="filter-statut">
+          <option value="">Tous les statuts</option>
+          <option>EMISE</option><option>EN_COURS</option>
+          <option>ACCEPTEE</option><option>REJETEE</option>
+        </select>
+        <input class="filter-input" id="filter-siret" placeholder="SIRET émetteur…" style="width:160px;" />
+        <input class="filter-input" id="filter-date-from" type="date" style="width:140px;" />
+        <input class="filter-input" id="filter-date-to"   type="date" style="width:140px;" />
+        <button class="btn-filter" onclick="loadFactures(1)">Filtrer</button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-header">
+          <span class="table-header-title">Toutes les factures</span>
+          <span id="fact-total" style="font-size:12px;color:#4b5563;"></span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Numéro</th><th>Émetteur</th><th>Client</th>
+              <th>Montant TTC</th><th>Statut</th><th>Date</th><th>Chorus ID</th>
+            </tr>
+          </thead>
+          <tbody id="fact-tbody"><tr><td colspan="7" class="loading">Chargement…</td></tr></tbody>
+        </table>
+        <div class="pagination" id="fact-pagination"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Détail entreprise ── -->
+<div id="detail-modal" class="detail-modal" style="display:none;">
+  <div class="detail-box">
+    <h2>
+      <span id="detail-title">Détail entreprise</span>
+      <button class="close-btn" onclick="closeDetail()">✕</button>
+    </h2>
+    <div id="detail-content"></div>
+  </div>
+</div>
+
+<script>
+  const API = window.location.hostname === 'localhost'
+    ? 'http://localhost:3001'
+    : 'https://api.factureasy.fr';
+
+  let adminToken = sessionStorage.getItem('fe_admin_token');
+  let currentPage = { entreprises: 1, factures: 1 };
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  async function adminLogin() {
+    const secret = document.getElementById('admin-secret').value;
+    try {
+      const r = await fetch(`${API}/auth/admin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secret })
+      });
+      if (!r.ok) throw new Error('Secret invalide');
+      const data = await r.json();
+      adminToken = data.token;
+      sessionStorage.setItem('fe_admin_token', adminToken);
+      showApp();
+    } catch (e) {
+      document.getElementById('login-error').textContent = e.message;
+    }
+  }
+
+  function logout() {
+    sessionStorage.removeItem('fe_admin_token');
+    adminToken = null;
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+  }
+
+  function headers() {
+    return { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` };
+  }
+
+  // ── App init ──────────────────────────────────────────────────────────────
+  function showApp() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('topbar-date').textContent =
+      new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    loadDashboard();
+  }
+
+  if (adminToken) showApp();
+
+  // ── Tabs ──────────────────────────────────────────────────────────────────
+  function switchTab(name, btn) {
+    ['dashboard','entreprises','factures'].forEach(t => {
+      document.getElementById(`tab-${t}`).style.display = 'none';
+    });
+    document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+    document.getElementById(`tab-${name}`).style.display = 'block';
+    btn.classList.add('active');
+    if (name === 'entreprises') loadEntreprises(1);
+    if (name === 'factures')    loadFactures(1);
+  }
+
+  // ── Dashboard ─────────────────────────────────────────────────────────────
+  async function loadDashboard() {
+    try {
+      const r = await fetch(`${API}/admin/stats`, { headers: headers() });
+      const d = await r.json();
+      const e = d.entreprises, f = d.factures;
+      const fmt = n => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n || 0);
+      document.getElementById('kpi-grid').innerHTML = `
+        <div class="kpi-card">
+          <div class="kpi-label">Entreprises inscrites</div>
+          <div class="kpi-value kpi-purple">${e.total_entreprises}</div>
+          <div class="kpi-sub">+${e.new_ce_mois} ce mois</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Volume total TTC</div>
+          <div class="kpi-value kpi-green">${fmt(f.volume_ttc_total)}</div>
+          <div class="kpi-sub">${fmt(f.volume_ce_mois)} ce mois</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Factures totales</div>
+          <div class="kpi-value kpi-blue">${f.total_factures}</div>
+          <div class="kpi-sub">${f.en_attente} en attente</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Acceptées / Rejetées</div>
+          <div class="kpi-value">
+            <span class="kpi-green">${f.acceptees}</span>
+            <span style="font-size:16px;color:#4b5563;margin:0 6px;">/</span>
+            <span class="kpi-red">${f.rejetees}</span>
+          </div>
+          <div class="kpi-sub">Taux succès : ${f.total_factures > 0 ? Math.round(f.acceptees / f.total_factures * 100) : 0}%</div>
+        </div>
+      `;
+    } catch (e) {
+      document.getElementById('kpi-grid').innerHTML = `<div class="loading">Erreur : ${e.message}</div>`;
+    }
+  }
+
+  // ── Entreprises ───────────────────────────────────────────────────────────
+  async function loadEntreprises(page) {
+    currentPage.entreprises = page;
+    const search = document.getElementById('search-entreprises').value;
+    const params = new URLSearchParams({ page, limit: 15, ...(search ? { search } : {}) });
+    try {
+      const r = await fetch(`${API}/admin/entreprises?${params}`, { headers: headers() });
+      const d = await r.json();
+      document.getElementById('ent-total').textContent = `${d.total} entreprise${d.total > 1 ? 's' : ''}`;
+      document.getElementById('ent-tbody').innerHTML = d.data.length === 0
+        ? `<tr><td colspan="7" class="empty">Aucune entreprise</td></tr>`
+        : d.data.map(e => `
+          <tr>
+            <td style="font-family:monospace;font-size:12px;">${e.siret}</td>
+            <td style="font-weight:500;color:#e2e8f0;">${e.nom}</td>
+            <td style="color:#60a5fa;">${e.email || '—'}</td>
+            <td>${e.nb_factures}</td>
+            <td style="color:#34d399;">${fmtEur(e.ca_ttc_total)}</td>
+            <td>${fmtDate(e.created_at)}</td>
+            <td style="display:flex;gap:6px;">
+              <button class="btn-sm" onclick="showDetail('${e.siret}')">Détail</button>
+              <button class="btn-sm btn-sm-danger" onclick="deleteEntreprise('${e.siret}', '${e.nom}')">Suppr.</button>
+            </td>
+          </tr>`).join('');
+      renderPagination('ent-pagination', d.page, d.pages, 'loadEntreprises');
+    } catch (e) {
+      document.getElementById('ent-tbody').innerHTML = `<tr><td colspan="7" class="loading">Erreur : ${e.message}</td></tr>`;
+    }
+  }
+
+  // ── Factures ──────────────────────────────────────────────────────────────
+  async function loadFactures(page) {
+    currentPage.factures = page;
+    const statut    = document.getElementById('filter-statut').value;
+    const siret     = document.getElementById('filter-siret').value;
+    const date_from = document.getElementById('filter-date-from').value;
+    const date_to   = document.getElementById('filter-date-to').value;
+    const params = new URLSearchParams({ page, limit: 20,
+      ...(statut    ? { statut }    : {}),
+      ...(siret     ? { siret }     : {}),
+      ...(date_from ? { date_from } : {}),
+      ...(date_to   ? { date_to }   : {}),
+    });
+    const badgeClass = { EMISE: 'badge-blue', EN_COURS: 'badge-orange', ACCEPTEE: 'badge-green', REJETEE: 'badge-red' };
+    try {
+      const r = await fetch(`${API}/admin/factures?${params}`, { headers: headers() });
+      const d = await r.json();
+      document.getElementById('fact-total').textContent = `${d.total} facture${d.total > 1 ? 's' : ''}`;
+      document.getElementById('fact-tbody').innerHTML = d.data.length === 0
+        ? `<tr><td colspan="7" class="empty">Aucune facture</td></tr>`
+        : d.data.map(f => `
+          <tr>
+            <td style="font-family:monospace;font-size:12px;">${f.numero}</td>
+            <td>${f.emetteur_nom || f.emetteur_siret}</td>
+            <td>${f.client_nom}</td>
+            <td style="color:#34d399;font-weight:500;">${fmtEur(f.montant_ttc)}</td>
+            <td><span class="badge ${badgeClass[f.statut] || ''}">${f.statut}</span></td>
+            <td>${fmtDate(f.date_emission)}</td>
+            <td style="font-size:11px;color:#4b5563;font-family:monospace;">${f.chorus_id || '—'}</td>
+          </tr>`).join('');
+      renderPagination('fact-pagination', d.page, d.pages, 'loadFactures');
+    } catch (e) {
+      document.getElementById('fact-tbody').innerHTML = `<tr><td colspan="7" class="loading">Erreur : ${e.message}</td></tr>`;
+    }
+  }
+
+  // ── Détail entreprise ─────────────────────────────────────────────────────
+  async function showDetail(siret) {
+    document.getElementById('detail-modal').style.display = 'flex';
+    document.getElementById('detail-content').innerHTML = '<div class="loading">Chargement…</div>';
+    try {
+      const r = await fetch(`${API}/admin/entreprises/${siret}`, { headers: headers() });
+      const d = await r.json();
+      const e = d.entreprise, s = d.stats;
+      document.getElementById('detail-title').textContent = e.nom;
+      document.getElementById('detail-content').innerHTML = `
+        <div class="detail-grid">
+          <div class="detail-row"><label>SIRET</label><span style="font-family:monospace;">${e.siret}</span></div>
+          <div class="detail-row"><label>Email</label><span>${e.email || '—'}</span></div>
+          <div class="detail-row"><label>Inscription</label><span>${fmtDate(e.created_at)}</span></div>
+          <div class="detail-row"><label>CA TTC total</label><span style="color:#34d399;">${fmtEur(s.ca_ttc)}</span></div>
+          <div class="detail-row"><label>CA HT total</label><span>${fmtEur(s.ca_ht)}</span></div>
+          <div class="detail-row"><label>Factures</label><span>${s.total} (${s.acceptees} acc. / ${s.rejetees} rej.)</span></div>
+        </div>
+        <p style="font-size:13px;font-weight:500;margin:16px 0 10px;">Dernières factures</p>
+        <table>
+          <thead><tr><th>Numéro</th><th>Client</th><th>TTC</th><th>Statut</th><th>Date</th></tr></thead>
+          <tbody>${d.factures.slice(0, 10).map(f => `
+            <tr>
+              <td style="font-size:12px;font-family:monospace;">${f.numero}</td>
+              <td>${f.client_nom}</td>
+              <td style="color:#34d399;">${fmtEur(f.montant_ttc)}</td>
+              <td>${f.statut}</td>
+              <td>${fmtDate(f.date_emission)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+    } catch (e) {
+      document.getElementById('detail-content').innerHTML = `<div class="loading">Erreur : ${e.message}</div>`;
+    }
+  }
+
+  function closeDetail() { document.getElementById('detail-modal').style.display = 'none'; }
+
+  // ── Suppression entreprise ────────────────────────────────────────────────
+  async function deleteEntreprise(siret, nom) {
+    if (!confirm(`Supprimer l'entreprise "${nom}" (${siret}) et TOUTES ses données ?\n\nCette action est irréversible.`)) return;
+    try {
+      const r = await fetch(`${API}/admin/entreprises/${siret}`, { method: 'DELETE', headers: headers() });
+      const d = await r.json();
+      if (d.ok) loadEntreprises(currentPage.entreprises);
+      else alert('Erreur : ' + d.error);
+    } catch (e) {
+      alert('Erreur : ' + e.message);
+    }
+  }
+
+  // ── Utilitaires ───────────────────────────────────────────────────────────
+  function fmtEur(n) {
+    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n || 0);
+  }
+  function fmtDate(d) {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+  function renderPagination(id, page, pages, fn) {
+    if (pages <= 1) { document.getElementById(id).innerHTML = ''; return; }
+    let html = `<button class="page-btn" onclick="${fn}(${page - 1})" ${page <= 1 ? 'disabled' : ''}>←</button>`;
+    for (let i = Math.max(1, page - 2); i <= Math.min(pages, page + 2); i++) {
+      html += `<button class="page-btn ${i === page ? 'active' : ''}" onclick="${fn}(${i})">${i}</button>`;
+    }
+    html += `<button class="page-btn" onclick="${fn}(${page + 1})" ${page >= pages ? 'disabled' : ''}>→</button>`;
+    html += `<span>${page} / ${pages}</span>`;
+    document.getElementById(id).innerHTML = html;
+  }
+
+  // Entrée clavier sur le champ secret
+  document.getElementById('admin-secret').addEventListener('keydown', e => {
+    if (e.key === 'Enter') adminLogin();
+  });
+</script>
+</body>
+</html>
