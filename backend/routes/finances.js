@@ -643,4 +643,13 @@ router.get('/dashboard/:siret', authenticate, async (req, res) => {
       tva_a_reverser,
       // Compteurs factures
       nb_factures_emises:    parseInt(resCompteurs.rows[0].nb_factures_emises,   10),
-      nb_facture
+      nb_factures_acceptees: parseInt(resCompteurs.rows[0].nb_factures_acceptees, 10),
+      nb_factures_rejetees:  parseInt(resCompteurs.rows[0].nb_factures_rejetees,  10),
+    });
+  } catch (err) {
+    console.error('[GET /finances/dashboard]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+module.exports = router;
