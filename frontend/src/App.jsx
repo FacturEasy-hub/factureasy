@@ -55,6 +55,35 @@ const MOCK_GRAPH_DATA = [
 const fmt = (n) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n || 0);
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('fr-FR') : '-');
+
+// Normalise les données de l'API vers le format frontend
+const normFacture = (f) => ({
+  ...f,
+  client:     f.client_nom   || f.client   || '',
+  date:       f.date_emission ? f.date_emission.slice(0,10) : (f.date || ''),
+  ttc:        parseFloat(f.montant_ttc  || f.ttc       || 0),
+  montantHT:  parseFloat(f.montant_ht   || f.montantHT || 0),
+  tva:        parseFloat(f.tva          || 0),
+});
+const normRevenu = (r) => ({
+  ...r,
+  client:     r.client_nom         || r.client   || '',
+  date:       r.date_encaissement  ? r.date_encaissement.slice(0,10)  : (r.date || ''),
+  ttc:        parseFloat(r.montant_ttc  || r.ttc       || 0),
+  montantHT:  parseFloat(r.montant_ht   || r.montantHT || 0),
+  tva:        parseFloat(r.tva_taux !== undefined ? (parseFloat(r.montant_ttc||0) - parseFloat(r.montant_ht||0)) : (r.tva || 0)),
+  statut:     r.statut || (r.source === 'facture' ? 'ENCAISSE' : 'ENCAISSE'),
+  source:     r.source === 'facture' ? 'Facture' : 'Manuel',
+});
+const normDepense = (d) => ({
+  ...d,
+  date:       d.date_depense ? d.date_depense.slice(0,10) : (d.date || ''),
+  ttc:        parseFloat(d.montant_ttc  || d.ttc       || 0),
+  montantHT:  parseFloat(d.montant_ht   || d.montantHT || 0),
+  tva:        parseFloat(d.montant_ttc && d.montant_ht ? (parseFloat(d.montant_ttc) - parseFloat(d.montant_ht)) : (d.tva || 0)),
+  categorie:  d.categorie_nom || d.categorie || 'Autre',
+});
+
 const initiales = (nom) =>
   nom
     ? nom
@@ -109,7 +138,8 @@ function Badge({ statut }) {
     REJETEE: { bg: '#fee2e2', color: '#991b1b', label: 'Rejetée' },
     ENCAISSE: { bg: '#d1fae5', color: '#065f46', label: 'Encaissé' },
     EN_ATTENTE: { bg: '#fef3c7', color: '#b45309', label: 'En attente' },
-    DECLAREE: { bg: '#dbeafe', color: '#1d4ed8', label: 'Déclarée' },
+    DECLAREE:   { bg: '#dbeafe', color: '#1d4ed8', label: 'Déclarée' },
+    A_REVERSER: { bg: '#fef9c3', color: '#854d0e', label: 'À reverser' },
   };
   const s = map[statut] || { bg: '#f1f5f9', color: '#64748b', label: statut };
   return (
@@ -439,6 +469,7 @@ const NAV_ITEMS = [
   { key: 'revenus', label: 'Revenus', icon: '💰' },
   { key: 'depenses', label: 'Dépenses', icon: '💸' },
   { key: 'tva', label: 'TVA', icon: '📋' },
+  { key: 'plans', label: 'Plans & abonnement', icon: '⭐' },
   { key: 'parametres', label: 'Paramètres', icon: '⚙️' },
 ];
 
@@ -565,6 +596,7 @@ const PAGE_META = {
   revenus: { title: 'Revenus', subtitle: 'Suivi de vos encaissements', cta: '+ Revenu manuel' },
   depenses: { title: 'Dépenses', subtitle: 'Gestion de vos charges', cta: '+ Nouvelle dépense' },
   tva: { title: 'TVA', subtitle: 'Déclarations et suivi de la TVA', cta: null },
+  plans: { title: 'Plans & abonnement', subtitle: 'Gérez votre abonnement FacturEasy', cta: null },
   parametres: { title: 'Paramètres', subtitle: 'Configuration de votre compte', cta: null },
 };
 
@@ -1380,7 +1412,24 @@ function SectionRevenus({ revenus, setRevenus, showModal, setShowModal }) {
   const totalAttente = enAttente.reduce((s, r) => s + r.ttc, 0);
   const panier = encaisses.length ? totalEncaisse / encaisses.length : 0;
 
-  const handleSave = (form) => {
+  const handleSave = async (form) => {
+    try {
+      const res = await apiCall('/finances/revenus', {
+        method: 'POST',
+        body: JSON.stringify({
+          libelle:           form.libelle || form.client || 'Revenu manuel',
+          montant_ttc:       form.ttc,
+          tva_taux:          form.tauxTVA,
+          date_encaissement: form.date,
+          client_nom:        form.client || null,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setRevenus((rs) => [normRevenu(data), ...rs]);
+        return;
+      }
+    } catch {}
     const nextId = (revenus.length > 0 ? Math.max(...revenus.map((r) => r.id)) : 0) + 1;
     setRevenus((rs) => [{ ...form, id: nextId, source: 'Manuel', statut: 'ENCAISSE' }, ...rs]);
   };
@@ -1569,12 +1618,32 @@ function SectionDepenses({ depenses, setDepenses, showModal, setShowModal }) {
     .filter((c) => c.montant > 0)
     .sort((a, b) => b.montant - a.montant);
 
-  const handleSave = (form) => {
+  const handleSave = async (form) => {
+    try {
+      const res = await apiCall('/finances/depenses', {
+        method: 'POST',
+        body: JSON.stringify({
+          libelle:         form.libelle,
+          montant_ttc:     form.ttc,
+          tva_taux:        form.tauxTVA,
+          date_depense:    form.date,
+          justificatif_url: form.justificatif || null,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setDepenses((ds) => [normDepense(data), ...ds]);
+        return;
+      }
+    } catch {}
     const nextId = depenses.length > 0 ? Math.max(...depenses.map((d) => d.id)) + 1 : 1;
     setDepenses((ds) => [{ ...form, id: nextId }, ...ds]);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
+    try {
+      await apiCall(`/finances/depenses/${id}`, { method: 'DELETE' });
+    } catch {}
     setDepenses((ds) => ds.filter((d) => d.id !== id));
   };
 
@@ -1714,6 +1783,32 @@ function SectionTVA({ factures, depenses, company }) {
   const [annee, setAnnee] = useState(new Date().getFullYear());
   const [ca3Loading, setCa3Loading] = useState(false);
   const [ca3Msg, setCa3Msg] = useState('');
+  const [tvaHistory, setTvaHistory] = useState([]);
+
+  useEffect(() => {
+    if (!company?.siret) return;
+    const months = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+    }
+    Promise.all(
+      months.map((m) =>
+        apiCall(`/finances/vat-summary/${company.siret}?mois=${m}`)
+          .then((r) => r.ok ? r.json() : null)
+          .catch(() => null)
+      )
+    ).then((results) => {
+      setTvaHistory(results.filter(Boolean).map((r) => ({
+        periode: r.periode,
+        collectee: r.tva_collectee,
+        deductible: r.tva_deductible,
+        montant: r.tva_a_reverser,
+        statut: r.tva_a_reverser > 0 ? 'A_REVERSER' : 'DECLAREE',
+      })));
+    });
+  }, [company]);
 
   const exportCA3 = async () => {
     if (!company?.siret) { setCa3Msg('SIRET introuvable'); return; }
@@ -1920,7 +2015,7 @@ function SectionTVA({ factures, depenses, company }) {
             </tr>
           </thead>
           <tbody>
-            {MOCK_TVA_HISTORY.map((row, i) => (
+            {tvaHistory.map((row, i) => (
               <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
                 <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600 }}>{row.periode}</td>
                 <td style={{ padding: '12px 16px', fontSize: 13, color: '#10b981' }}>
@@ -2520,6 +2615,107 @@ function ChorusStatus() {
 }
 
 
+// ─── Section Plans & abonnement ──────────────────────────────────────────────
+function SectionPlans({ company }) {
+  const [planInfo, setPlanInfo] = useState(null);
+  const [loading, setLoading] = useState('');
+
+  useEffect(() => {
+    apiCall('/auth/me').then((r) => r.ok ? r.json() : null).then((d) => { if (d) setPlanInfo(d); }).catch(() => {});
+  }, [company]);
+
+  const plans = [
+    { key: 'solo',     label: 'Solo',     price: 14,  color: '#0891b2', bg: '#e0f2fe', features: ['1 utilisateur','50 factures/mois','Relances auto','Export CA3 TVA','Support email'] },
+    { key: 'pro',      label: 'Pro',      price: 34,  color: '#4f46e5', bg: '#ede9fe', features: ['3 utilisateurs','Illimité','Factures récurrentes','Accès comptable','Support prioritaire'], popular: true },
+    { key: 'equipe',   label: 'Équipe',   price: 69,  color: '#7c3aed', bg: '#f3e8ff', features: ['10 utilisateurs','Multi-sites','Chorus Pro direct','API accès','SLA 99,5%'] },
+    { key: 'business', label: 'Business', price: 149, color: '#dc2626', bg: '#fee2e2', features: ['Illimité','Chorus Pro direct','SLA 99,9%','Onboarding dédié','Support téléphone'] },
+  ];
+
+  const currentPlan = planInfo?.plan || 'gratuit';
+  const isTrialing  = planInfo?.trial_ends_at && new Date(planInfo.trial_ends_at) > new Date();
+  const trialEnd    = planInfo?.trial_ends_at ? new Date(planInfo.trial_ends_at) : null;
+  const daysLeft    = trialEnd ? Math.ceil((trialEnd - new Date()) / 86400000) : 0;
+
+  const handleSelect = async (planKey) => {
+    setLoading(planKey);
+    try {
+      const res = await apiCall('/stripe/create-checkout-session', { method: 'POST', body: JSON.stringify({ plan: planKey }) });
+      const data = await res.json();
+      if (res.ok && data.url) { window.location.href = data.url; return; }
+    } catch {}
+    setLoading('');
+  };
+
+  const handlePortal = async () => {
+    setLoading('portal');
+    try {
+      const res = await apiCall('/stripe/portal', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok && data.url) { window.location.href = data.url; return; }
+    } catch {}
+    setLoading('');
+  };
+
+  return (
+    <div className="fade-in" style={{ padding: '28px 32px' }}>
+      {/* Bandeau plan actuel */}
+      {planInfo && (
+        <div style={{ background: isTrialing ? '#ede9fe' : '#f0fdf4', border: `1.5px solid ${isTrialing ? '#7c3aed' : '#16a34a'}`, borderRadius: 12, padding: '16px 24px', marginBottom: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: isTrialing ? '#7c3aed' : '#16a34a', marginBottom: 4 }}>
+              {isTrialing ? `⏳ Essai en cours — ${daysLeft} jour${daysLeft > 1 ? 's' : ''} restants` : `✓ Plan actuel : ${currentPlan}`}
+            </div>
+            {isTrialing && trialEnd && (
+              <div style={{ fontSize: 12, color: '#64748b' }}>Fin d'essai : {trialEnd.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+            )}
+          </div>
+          {planInfo.stripe_customer_id && (
+            <button onClick={handlePortal} disabled={loading === 'portal'} style={{ background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              {loading === 'portal' ? 'Redirection…' : '⚙️ Gérer mon abonnement'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Grille plans */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 16 }}>
+        {plans.map((plan) => {
+          const isCurrent = currentPlan === plan.key;
+          return (
+            <div key={plan.key} style={{ background: '#fff', borderRadius: 16, border: isCurrent ? `2px solid ${plan.color}` : plan.popular ? `1.5px solid ${plan.color}60` : '1px solid #e2e8f0', padding: '24px 20px', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+              {plan.popular && !isCurrent && (
+                <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: plan.color, color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 14px', borderRadius: 20, whiteSpace: 'nowrap' }}>Le plus populaire</div>
+              )}
+              {isCurrent && (
+                <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: plan.color, color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 14px', borderRadius: 20, whiteSpace: 'nowrap' }}>✓ Plan actuel</div>
+              )}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: plan.color, background: plan.bg, display: 'inline-block', padding: '3px 12px', borderRadius: 20, marginBottom: 10 }}>{plan.label}</div>
+                <div style={{ fontSize: 30, fontWeight: 800, color: '#0f172a' }}>{plan.price}€<span style={{ fontSize: 13, fontWeight: 400, color: '#64748b' }}>/mois</span></div>
+                {!planInfo?.stripe_customer_id && <div style={{ fontSize: 11, color: '#10b981', fontWeight: 600, marginTop: 4 }}>✓ 2 ans offerts · Aucun prélèvement</div>}
+              </div>
+              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {plan.features.map((f) => (
+                  <li key={f} style={{ fontSize: 13, color: '#475569', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ color: '#10b981', fontWeight: 700, flexShrink: 0 }}>✓</span>{f}
+                  </li>
+                ))}
+              </ul>
+              {isCurrent ? (
+                <div style={{ textAlign: 'center', padding: '10px', background: plan.bg, borderRadius: 8, fontSize: 13, fontWeight: 600, color: plan.color }}>Plan actif</div>
+              ) : (
+                <button onClick={() => handleSelect(plan.key)} disabled={!!loading} style={{ background: plan.color, color: '#fff', border: 'none', borderRadius: 10, padding: '11px 0', fontWeight: 700, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', width: '100%', opacity: loading ? 0.7 : 1 }}>
+                  {loading === plan.key ? 'Redirection…' : `Choisir ${plan.label}`}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Écran sélection de plan (affiché après le premier login) ────────────────
 function PlanSelectionScreen({ company, onSkip }) {
   const [loading, setLoading] = useState('');
@@ -2728,12 +2924,12 @@ export default function App() {
       try {
         const [rF, rR, rD] = await Promise.all([
           apiCall('/factures'),
-          apiCall('/revenus'),
-          apiCall('/depenses'),
+          apiCall('/finances/revenus'),
+          apiCall('/finances/depenses'),
         ]);
-        if (rF.ok) setFactures(await rF.json());
-        if (rR.ok) setRevenus(await rR.json());
-        if (rD.ok) setDepenses(await rD.json());
+        if (rF.ok) setFactures((await rF.json()).map(normFacture));
+        if (rR.ok) setRevenus((await rR.json()).map(normRevenu));
+        if (rD.ok) setDepenses((await rD.json()).map(normDepense));
       } catch {}
     };
     load();
@@ -2779,6 +2975,8 @@ export default function App() {
         return <SectionRecurrentes company={company} showModal={showModal} setShowModal={setShowModal} />;
       case 'tresorerie':
         return <SectionTresorerie factures={factures} revenus={revenus} depenses={depenses} />;
+      case 'plans':
+        return <SectionPlans company={company} />;
       case 'parametres':
         return <SectionParametres company={company} />;
       default:
