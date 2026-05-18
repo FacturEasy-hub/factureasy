@@ -2520,6 +2520,153 @@ function ChorusStatus() {
 }
 
 
+// ─── Écran sélection de plan (affiché après le premier login) ────────────────
+function PlanSelectionScreen({ company, onSkip }) {
+  const [loading, setLoading] = useState('');
+  const [error, setError]     = useState('');
+
+  const plans = [
+    {
+      key: 'solo',
+      label: 'Solo',
+      price: '14€',
+      color: '#0891b2',
+      bg: '#e0f2fe',
+      features: ['1 utilisateur', '50 factures/mois', 'Relances automatiques', 'Export CA3 TVA'],
+    },
+    {
+      key: 'pro',
+      label: 'Pro',
+      price: '34€',
+      color: '#4f46e5',
+      bg: '#ede9fe',
+      features: ['3 utilisateurs', 'Factures illimitées', 'Factures récurrentes', 'Accès comptable'],
+      popular: true,
+    },
+    {
+      key: 'equipe',
+      label: 'Équipe',
+      price: '69€',
+      color: '#7c3aed',
+      bg: '#f3e8ff',
+      features: ['10 utilisateurs', 'Multi-établissements', 'Support prioritaire', 'API accès'],
+    },
+    {
+      key: 'business',
+      label: 'Business',
+      price: '149€',
+      color: '#dc2626',
+      bg: '#fee2e2',
+      features: ['Illimité', 'Chorus Pro direct', 'SLA 99,9%', 'Onboarding dédié'],
+    },
+  ];
+
+  const handleSelect = async (planKey) => {
+    setLoading(planKey);
+    setError('');
+    try {
+      const res  = await apiCall('/stripe/create-checkout-session', {
+        method: 'POST',
+        body: JSON.stringify({ plan: planKey }),
+      });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        window.location.href = data.url;
+      } else {
+        setError(data.error || 'Erreur lors de la création de la session Stripe');
+        setLoading('');
+      }
+    } catch (e) {
+      setError('Impossible de joindre le serveur');
+      setLoading('');
+    }
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 16px' }}>
+      {/* En-tête */}
+      <div style={{ textAlign: 'center', marginBottom: 40 }}>
+        <div style={{ fontSize: 28, fontWeight: 800, color: '#4f46e5', marginBottom: 8 }}>⚡ FacturEasy</div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>
+          Bienvenue, {company?.nom} 👋
+        </div>
+        <div style={{ fontSize: 15, color: '#64748b', maxWidth: 480, margin: '0 auto' }}>
+          Choisissez votre plan — tous incluent <strong style={{ color: '#4f46e5' }}>2 ans d'essai gratuit</strong>, sans carte bancaire requise pour commencer.
+        </div>
+      </div>
+
+      {/* Grille plans */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, width: '100%', maxWidth: 860, marginBottom: 24 }}>
+        {plans.map((plan) => (
+          <div
+            key={plan.key}
+            style={{
+              background: '#fff',
+              borderRadius: 16,
+              border: plan.popular ? `2px solid ${plan.color}` : '1px solid #e2e8f0',
+              padding: '24px 20px',
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+            }}
+          >
+            {plan.popular && (
+              <div style={{ position: 'absolute', top: -13, left: '50%', transform: 'translateX(-50%)', background: plan.color, color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 14px', borderRadius: 20, whiteSpace: 'nowrap' }}>
+                Le plus populaire
+              </div>
+            )}
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: plan.color, background: plan.bg, display: 'inline-block', padding: '3px 12px', borderRadius: 20, marginBottom: 8 }}>{plan.label}</div>
+              <div style={{ fontSize: 28, fontWeight: 800, color: '#0f172a' }}>{plan.price}<span style={{ fontSize: 14, fontWeight: 500, color: '#64748b' }}>/mois</span></div>
+              <div style={{ fontSize: 12, color: '#10b981', fontWeight: 600, marginTop: 4 }}>✓ 2 ans offerts — aucun prélèvement</div>
+            </div>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+              {plan.features.map((f) => (
+                <li key={f} style={{ fontSize: 12, color: '#475569', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ color: '#10b981', fontWeight: 700 }}>✓</span> {f}
+                </li>
+              ))}
+            </ul>
+            <button
+              onClick={() => handleSelect(plan.key)}
+              disabled={!!loading}
+              style={{
+                background: loading === plan.key ? '#e2e8f0' : plan.color,
+                color: loading === plan.key ? '#94a3b8' : '#fff',
+                border: 'none',
+                borderRadius: 10,
+                padding: '11px 0',
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                width: '100%',
+                transition: 'opacity 0.15s',
+              }}
+            >
+              {loading === plan.key ? 'Redirection…' : `Choisir ${plan.label}`}
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {error && (
+        <div style={{ color: '#dc2626', background: '#fee2e2', borderRadius: 8, padding: '10px 16px', fontSize: 13, marginBottom: 16 }}>
+          {error}
+        </div>
+      )}
+
+      {/* Skip */}
+      <button
+        onClick={onSkip}
+        style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
+      >
+        Continuer sans plan pour l'instant (plan gratuit)
+      </button>
+    </div>
+  );
+}
+
 // ─── Aliases composants (noms normalisés) ────────────────────────────────────
 const LoginPage          = LoginScreen;
 const OnboardingChecklist = OnboardingWizard;
@@ -2551,6 +2698,7 @@ export default function App() {
   const [page, setPage] = useState('dashboard');
   const [showModal, setShowModal] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showPlanSelection, setShowPlanSelection] = useState(false);
   const [factures, setFactures] = useState([]);
   const [revenus, setRevenus] = useState([]);
   const [depenses, setDepenses] = useState([]);
@@ -2565,13 +2713,13 @@ export default function App() {
     }
   }, []);
 
-  // Afficher l'onboarding au premier login (si les 3 étapes ne sont pas toutes faites)
+  // Afficher l'onboarding au premier login (si les étapes ne sont pas toutes faites)
   useEffect(() => {
-    if (!company) return;
+    if (!company || showPlanSelection) return;
     const saved = JSON.parse(localStorage.getItem('fe_onboarding') || '{}');
     const allDone = ONBOARDING_STEPS.every((s) => saved[s.key]);
     if (!allDone) setShowOnboarding(true);
-  }, [company]);
+  }, [company, showPlanSelection]);
 
   // Charger données depuis l'API (fallback mock si erreur)
   useEffect(() => {
@@ -2591,9 +2739,18 @@ export default function App() {
     load();
   }, [company]);
 
-  const handleLogin = (entreprise) => {
+  const handleLogin = async (entreprise) => {
     setCompany(entreprise);
     setPage('dashboard');
+    // Vérifier si l'utilisateur a déjà choisi un plan Stripe
+    // Si stripe_customer_id est null → premier login → proposer le choix du plan
+    try {
+      const res  = await apiCall('/auth/me');
+      const data = res.ok ? await res.json() : null;
+      if (data && !data.stripe_customer_id) {
+        setShowPlanSelection(true);
+      }
+    } catch {}
   };
 
   const handleLogout = () => {
@@ -2631,6 +2788,15 @@ export default function App() {
 
   if (!company) {
     return <LoginPage onLogin={handleLogin} />;
+  }
+
+  if (showPlanSelection) {
+    return (
+      <PlanSelectionScreen
+        company={company}
+        onSkip={() => setShowPlanSelection(false)}
+      />
+    );
   }
 
   return (
