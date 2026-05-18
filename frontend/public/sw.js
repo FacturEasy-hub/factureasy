@@ -17,7 +17,10 @@ self.addEventListener('fetch', e => {
   if (/^\/(factures|finances|auth|stats|sirene|relances|admin)/.test(url.pathname)) {
     e.respondWith(
       fetch(e.request.clone()).then(r => {
-        if (r.ok) caches.open(CACHE).then(c => c.put(e.request, r.clone()));
+        if (r.ok) {
+          const rClone = r.clone();
+          caches.open(CACHE).then(c => c.put(e.request, rClone));
+        }
         return r;
       }).catch(() => caches.match(e.request).then(c =>
         c || new Response(JSON.stringify({error:'Hors ligne',offline:true}),

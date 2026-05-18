@@ -2519,6 +2519,32 @@ function ChorusStatus() {
   );
 }
 
+
+// ─── Aliases composants (noms normalisés) ────────────────────────────────────
+const LoginPage          = LoginScreen;
+const OnboardingChecklist = OnboardingWizard;
+
+function SectionTresorerie({ factures, revenus, depenses }) {
+  const totalEncaisse = revenus.reduce((s, r) => s + parseFloat(r.montant_ttc || 0), 0);
+  const totalDepense  = depenses.reduce((s, d) => s + parseFloat(d.ttc || 0), 0);
+  const solde         = totalEncaisse - totalDepense;
+  const fmt = (n) => n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+  return (
+    <div className="fade-in" style={{ padding: '28px 32px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20, marginBottom: 28 }}>
+        <KpiCard label="Encaissé" value={fmt(totalEncaisse)} color="#10b981" />
+        <KpiCard label="Décaissé"  value={fmt(totalDepense)}  color="#ef4444" />
+        <KpiCard label="Solde net" value={fmt(solde)}         color={solde >= 0 ? '#4f46e5' : '#ef4444'} />
+      </div>
+      <div style={{ background:'#fff', borderRadius:12, padding:24, boxShadow:'0 1px 4px rgba(0,0,0,0.07)' }}>
+        <p style={{ color:'#64748b', fontSize:14 }}>
+          Graphique de trésorerie — disponible prochainement.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ─── App principal ────────────────────────────────────────────────────────────
 export default function App() {
   const [company, setCompany] = useState(null);
