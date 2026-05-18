@@ -127,9 +127,8 @@ router.post('/create-checkout-session', authenticate, async (req, res) => {
 
     if (!customerId) {
       const customer = await stripeRequest('POST', '/v1/customers', {
-        email:       rows[0].email || '',
-        name:        rows[0].nom,
-        metadata:    `siret=${siret}`,  // stocké comme string dans URLSearchParams
+        email:             rows[0].email || '',
+        name:              rows[0].nom,
         'metadata[siret]': siret,
       });
       customerId = customer.id;
@@ -146,6 +145,10 @@ router.post('/create-checkout-session', authenticate, async (req, res) => {
       mode:                                  'subscription',
       'line_items[0][price]':                priceId,
       'line_items[0][quantity]':             '1',
+      // Metadata sur la SESSION (pour checkout.session.completed)
+      'metadata[siret]':                     siret,
+      'metadata[plan]':                      plan,
+      // Metadata sur la SUBSCRIPTION (pour subscription.updated/deleted)
       'subscription_data[trial_period_days]': String(TRIAL_DAYS),
       'subscription_data[metadata][siret]':  siret,
       'subscription_data[metadata][plan]':   plan,
