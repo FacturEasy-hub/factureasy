@@ -165,6 +165,65 @@ app.get('/init-db', requireAdmin, async (req, res) => {
 
       CREATE INDEX IF NOT EXISTS idx_factures_siret  ON factures(emetteur_siret);
       CREATE INDEX IF NOT EXISTS idx_factures_statut ON factures(statut);
+
+      -- ── Catalogue produits/services ────────────────────────────────────────
+      CREATE TABLE IF NOT EXISTS catalogue (
+        id              SERIAL PRIMARY KEY,
+        siret           VARCHAR(14)   NOT NULL,
+        reference       VARCHAR(100),
+        nom             VARCHAR(255)  NOT NULL,
+        description     TEXT,
+        prix_ht         NUMERIC(12,2) NOT NULL DEFAULT 0,
+        tva_taux        NUMERIC(5,2)  NOT NULL DEFAULT 20,
+        unite           VARCHAR(50)   DEFAULT 'unité',
+        code_comptable  VARCHAR(50),
+        actif           BOOLEAN       DEFAULT TRUE,
+        created_at      TIMESTAMPTZ   DEFAULT NOW(),
+        updated_at      TIMESTAMPTZ   DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_catalogue_siret ON catalogue(siret);
+
+      -- ── Devis ──────────────────────────────────────────────────────────────
+      CREATE TABLE IF NOT EXISTS devis_sequences (
+        siret    VARCHAR(14) NOT NULL,
+        year     INTEGER     NOT NULL,
+        last_seq INTEGER     DEFAULT 0,
+        PRIMARY KEY (siret, year)
+      );
+      CREATE TABLE IF NOT EXISTS devis (
+        id              SERIAL PRIMARY KEY,
+        numero          VARCHAR(50)   UNIQUE NOT NULL,
+        siret           VARCHAR(14)   NOT NULL,
+        client_siret    VARCHAR(14),
+        client_nom      VARCHAR(255)  NOT NULL,
+        client_email    VARCHAR(255),
+        client_adresse  TEXT,
+        objet           VARCHAR(255),
+        montant_ht      NUMERIC(12,2) NOT NULL DEFAULT 0,
+        tva_taux        NUMERIC(5,2)  DEFAULT 20,
+        montant_ttc     NUMERIC(12,2) NOT NULL DEFAULT 0,
+        statut          VARCHAR(20)   DEFAULT 'BROUILLON',
+        date_emission   DATE          DEFAULT CURRENT_DATE,
+        date_validite   DATE,
+        notes           TEXT,
+        facture_id      INTEGER,
+        created_at      TIMESTAMPTZ   DEFAULT NOW(),
+        updated_at      TIMESTAMPTZ   DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS devis_lignes (
+        id               SERIAL PRIMARY KEY,
+        devis_id         INTEGER       NOT NULL REFERENCES devis(id) ON DELETE CASCADE,
+        description      TEXT          NOT NULL,
+        quantite         NUMERIC(10,3) DEFAULT 1,
+        prix_unitaire_ht NUMERIC(12,2) NOT NULL,
+        tva_taux         NUMERIC(5,2)  DEFAULT 20,
+        montant_ht       NUMERIC(12,2) NOT NULL,
+        unite            VARCHAR(50)   DEFAULT 'unité',
+        catalogue_id     INTEGER,
+        ordre            INTEGER       DEFAULT 0
+      );
+      CREATE INDEX IF NOT EXISTS idx_devis_siret  ON devis(siret);
+      CREATE INDEX IF NOT EXISTS idx_devis_lignes ON devis_lignes(devis_id);
     `);
     res.json({ ok: true, message: 'Schéma initialisé' });
   } catch (err) {
