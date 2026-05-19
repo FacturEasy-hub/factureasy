@@ -468,7 +468,9 @@ const NAV_ITEMS = [
   { key: 'recurrentes', label: 'Récurrentes', icon: '🔁' },
   { key: 'revenus', label: 'Revenus', icon: '💰' },
   { key: 'depenses', label: 'Dépenses', icon: '💸' },
-  { key: 'tva', label: 'TVA', icon: '📋' },
+  { key: 'tva',        label: 'TVA',                icon: '📋' },
+  { key: 'devis',      label: 'Devis',              icon: '📝' },
+  { key: 'catalogue',  label: 'Catalogue',          icon: '🗂️' },
   { key: 'plans', label: 'Plans & abonnement', icon: '⭐' },
   { key: 'parametres', label: 'Paramètres', icon: '⚙️' },
 ];
@@ -596,6 +598,8 @@ const PAGE_META = {
   revenus: { title: 'Revenus', subtitle: 'Suivi de vos encaissements', cta: '+ Revenu manuel' },
   depenses: { title: 'Dépenses', subtitle: 'Gestion de vos charges', cta: '+ Nouvelle dépense' },
   tva: { title: 'TVA', subtitle: 'Déclarations et suivi de la TVA', cta: null },
+  devis: { title: 'Devis', subtitle: 'Propositions commerciales et conversion en facture', cta: '+ Nouveau devis' },
+  catalogue: { title: 'Catalogue', subtitle: 'Articles et services réutilisables', cta: '+ Nouvel article' },
   plans: { title: 'Plans & abonnement', subtitle: 'Gérez votre abonnement FacturEasy', cta: null },
   parametres: { title: 'Paramètres', subtitle: 'Configuration de votre compte', cta: null },
 };
@@ -2731,6 +2735,439 @@ function SectionPlans({ company }) {
   );
 }
 
+
+// ─── Section Catalogue ────────────────────────────────────────────────────────
+function SectionCatalogue({ showModal, setShowModal }) {
+  const [articles, setArticles] = useState([]);
+  const [total, setTotal]       = useState(0);
+  const [loading, setLoading]   = useState(true);
+  const [search, setSearch]     = useState('');
+  const [pg, setPg]             = useState(1);
+  const [editItem, setEditItem] = useState(null);
+  const [form, setForm]         = useState({ reference:'', nom:'', description:'', prix_ht:'', tva_taux:'20', unite:'unité', code_comptable:'' });
+  const [importModal, setImportModal] = useState(false);
+  const [csvText, setCsvText]   = useState('');
+  const [importResult, setImportResult] = useState(null);
+  const [msg, setMsg]           = useState('');
+  const LIMIT = 20;
+
+  const load = useCallback(async (q = search, p = pg) => {
+    setLoading(true);
+    try {
+      const r = await apiCall(`/catalogue?search=${encodeURIComponent(q)}&page=${p}&limit=${LIMIT}`);
+      if (r.ok) { const d = await r.json(); setArticles(d.data||[]); setTotal(d.total||0); }
+    } catch {}
+    setLoading(false);
+  }, [search, pg]);
+
+  useEffect(() => { load(); }, []);
+
+  const openCreate = () => {
+    setEditItem(null);
+    setForm({ reference:'', nom:'', description:'', prix_ht:'', tva_taux:'20', unite:'unité', code_comptable:'' });
+    setShowModal(true);
+  };
+  const openEdit = (a) => {
+    setEditItem(a);
+    setForm({ reference:a.reference||'', nom:a.nom||'', description:a.description||'', prix_ht:String(a.prix_ht||''), tva_taux:String(a.tva_taux||'20'), unite:a.unite||'unité', code_comptable:a.code_comptable||'' });
+    setShowModal(true);
+  };
+  const handleSave = async () => {
+    if (!form.nom || form.prix_ht==='') return setMsg('Nom et prix HT requis');
+    setMsg('');
+    const body = { ...form, prix_ht:parseFloat(form.prix_ht), tva_taux:parseFloat(form.tva_taux||20) };
+    const r = editItem
+      ? await apiCall(`/catalogue/${editItem.id}`, { method:'PUT', body:JSON.stringify(body) })
+      : await apiCall('/catalogue', { method:'POST', body:JSON.stringify(body) });
+    if (r.ok) { setShowModal(false); setMsg(editItem?'✓ Article mis à jour':'✓ Article créé'); load(search, pg); }
+    else { const d=await r.json(); setMsg(d.error||'Erreur'); }
+  };
+  const handleDelete = async (id) => {
+    if (!window.confirm('Archiver cet article ?')) return;
+    await apiCall(`/catalogue/${id}`, { method:'DELETE' });
+    load(search, pg);
+  };
+  const handleImport = async () => {
+    setImportResult(null);
+    const r = await apiCall('/catalogue/import', { method:'POST', body:JSON.stringify({ csv:csvText }) });
+    const d = await r.json();
+    setImportResult(d);
+    if (r.ok && d.created>0) load(search, pg);
+  };
+  const fmtP = (n) => parseFloat(n||0).toFixed(2);
+
+  return (
+    <div className="fade-in" style={{ padding:'28px 32px' }}>
+      {msg && <div style={{ background:msg.startsWith('✓')?'#d1fae5':'#fee2e2', color:msg.startsWith('✓')?'#065f46':'#991b1b', borderRadius:8, padding:'10px 16px', marginBottom:16, fontSize:13 }}>{msg}</div>}
+
+      <div style={{ display:'flex', gap:12, marginBottom:20, alignItems:'center', flexWrap:'wrap' }}>
+        <input style={{ ...inputStyle, flex:1, minWidth:200, maxWidth:380 }} placeholder="Rechercher par nom, référence…" value={search}
+          onChange={(e) => { setSearch(e.target.value); setPg(1); load(e.target.value,1); }} />
+        <Btn variant="ghost" onClick={() => setImportModal(true)}>⬆ Importer CSV</Btn>
+        <Btn onClick={openCreate}>+ Nouvel article</Btn>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign:'center', padding:40, color:'#94a3b8' }}>Chargement…</div>
+      ) : articles.length===0 ? (
+        <div style={{ background:'#fff', borderRadius:12, padding:'48px 32px', textAlign:'center', color:'#94a3b8', boxShadow:'0 1px 4px rgba(0,0,0,0.07)' }}>
+          <div style={{ fontSize:36, marginBottom:12 }}>🗂️</div>
+          <div style={{ fontWeight:600, color:'#374151', marginBottom:8 }}>Catalogue vide</div>
+          <div style={{ fontSize:13 }}>Ajoutez vos articles et services pour les réutiliser dans vos devis.</div>
+          <div style={{ marginTop:16 }}><Btn onClick={openCreate}>+ Créer le premier article</Btn></div>
+        </div>
+      ) : (
+        <div style={{ background:'#fff', borderRadius:12, overflow:'hidden', boxShadow:'0 1px 4px rgba(0,0,0,0.07)' }}>
+          <table style={{ width:'100%' }}>
+            <thead>
+              <tr style={{ background:'#f8fafc', borderBottom:'1px solid #e2e8f0' }}>
+                {['Référence','Nom / Description','Unité','Prix HT','TVA','Compte',''].map((h) => (
+                  <th key={h} style={{ padding:'12px 16px', fontSize:12, fontWeight:600, color:'#64748b', textAlign:h==='Prix HT'?'right':'left' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {articles.map((a,i) => (
+                <tr key={a.id} style={{ borderBottom:'1px solid #f1f5f9', background:i%2?'#fafafa':'#fff' }}>
+                  <td style={{ padding:'12px 16px', fontSize:13, color:'#64748b' }}>{a.reference||'—'}</td>
+                  <td style={{ padding:'12px 16px' }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:'#0f172a' }}>{a.nom}</div>
+                    {a.description && <div style={{ fontSize:12, color:'#94a3b8', marginTop:2 }}>{a.description.slice(0,60)}{a.description.length>60?'…':''}</div>}
+                  </td>
+                  <td style={{ padding:'12px 16px', fontSize:13 }}>{a.unite}</td>
+                  <td style={{ padding:'12px 16px', fontSize:13, fontWeight:600, textAlign:'right' }}>{fmtP(a.prix_ht)} €</td>
+                  <td style={{ padding:'12px 16px', fontSize:13 }}>{a.tva_taux} %</td>
+                  <td style={{ padding:'12px 16px', fontSize:12, color:'#64748b' }}>{a.code_comptable||'—'}</td>
+                  <td style={{ padding:'12px 16px' }}>
+                    <div style={{ display:'flex', gap:6 }}>
+                      <Btn variant="ghost" style={{ padding:'5px 10px', fontSize:12 }} onClick={() => openEdit(a)}>✏️</Btn>
+                      <Btn variant="danger" style={{ padding:'5px 10px', fontSize:12 }} onClick={() => handleDelete(a.id)}>🗑</Btn>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {total>LIMIT && (
+            <div style={{ padding:'12px 16px', display:'flex', gap:8, alignItems:'center', borderTop:'1px solid #e2e8f0' }}>
+              <Btn variant="ghost" style={{ padding:'5px 12px' }} disabled={pg===1} onClick={() => { const p=pg-1; setPg(p); load(search,p); }}>←</Btn>
+              <span style={{ fontSize:13, color:'#64748b' }}>Page {pg} / {Math.ceil(total/LIMIT)}</span>
+              <Btn variant="ghost" style={{ padding:'5px 12px' }} disabled={pg>=Math.ceil(total/LIMIT)} onClick={() => { const p=pg+1; setPg(p); load(search,p); }}>→</Btn>
+            </div>
+          )}
+        </div>
+      )}
+
+      {showModal && (
+        <Modal title={editItem?'Modifier l\'article':'Nouvel article'} onClose={() => setShowModal(false)}>
+          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            <Field label="Nom *"><input style={inputStyle} value={form.nom} onChange={(e) => setForm({...form,nom:e.target.value})} placeholder="Conseil en stratégie" /></Field>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <Field label="Référence"><input style={inputStyle} value={form.reference} onChange={(e) => setForm({...form,reference:e.target.value})} placeholder="REF-001" /></Field>
+              <Field label="Unité"><input style={inputStyle} value={form.unite} onChange={(e) => setForm({...form,unite:e.target.value})} placeholder="heure / unité / forfait" /></Field>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <Field label="Prix HT (€) *"><input style={inputStyle} type="number" step="0.01" min="0" value={form.prix_ht} onChange={(e) => setForm({...form,prix_ht:e.target.value})} placeholder="150.00" /></Field>
+              <Field label="TVA (%)">
+                <select style={inputStyle} value={form.tva_taux} onChange={(e) => setForm({...form,tva_taux:e.target.value})}>
+                  <option value="0">0 % (exonéré)</option><option value="2.1">2,1 %</option>
+                  <option value="5.5">5,5 %</option><option value="10">10 %</option><option value="20">20 %</option>
+                </select>
+              </Field>
+            </div>
+            <Field label="Description"><textarea style={{ ...inputStyle, resize:'vertical', minHeight:72 }} value={form.description} onChange={(e) => setForm({...form,description:e.target.value})} placeholder="Description optionnelle…" /></Field>
+            <Field label="Code comptable"><input style={inputStyle} value={form.code_comptable} onChange={(e) => setForm({...form,code_comptable:e.target.value})} placeholder="706100" /></Field>
+            {msg && !msg.startsWith('✓') && <div style={{ color:'#dc2626', fontSize:13 }}>{msg}</div>}
+            <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:8 }}>
+              <Btn variant="ghost" onClick={() => setShowModal(false)}>Annuler</Btn>
+              <Btn onClick={handleSave}>{editItem?'Enregistrer':'Créer'}</Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {importModal && (
+        <Modal title="Importer un catalogue CSV" onClose={() => { setImportModal(false); setImportResult(null); setCsvText(''); }}>
+          <div style={{ fontSize:13, color:'#64748b', marginBottom:12, lineHeight:1.7 }}>
+            Collez votre CSV ci-dessous (séparateur <code>;</code>) :<br />
+            <code style={{ background:'#f1f5f9', padding:'2px 6px', borderRadius:4, fontSize:12 }}>reference;nom;description;prix_ht;tva_taux;unite;code_comptable</code>
+          </div>
+          <textarea style={{ ...inputStyle, minHeight:200, fontFamily:'monospace', fontSize:12, resize:'vertical' }}
+            placeholder={"REF001;Conseil horaire;;150.00;20;heure;706100\nREF002;Formation;;1200.00;20;jour;706200"}
+            value={csvText} onChange={(e) => setCsvText(e.target.value)} />
+          {importResult && (
+            <div style={{ marginTop:12, padding:'10px 14px', borderRadius:8, background:importResult.ok?'#d1fae5':'#fee2e2', fontSize:13, color:importResult.ok?'#065f46':'#991b1b' }}>
+              {importResult.ok ? `✓ ${importResult.created} article(s) importé(s) sur ${importResult.total_lignes} ligne(s).` : importResult.error}
+              {importResult.errors?.length>0 && <div style={{ marginTop:6, fontSize:12 }}>{importResult.errors.map((e,i) => <div key={i}>⚠️ Ligne {e.ligne} : {e.raison}</div>)}</div>}
+            </div>
+          )}
+          <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:12 }}>
+            <Btn variant="ghost" onClick={() => { setImportModal(false); setImportResult(null); setCsvText(''); }}>Fermer</Btn>
+            <Btn onClick={handleImport} disabled={!csvText.trim()}>Importer</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+
+// ─── Section Devis ────────────────────────────────────────────────────────────
+function SectionDevis({ showModal, setShowModal, company }) {
+  const [devisList, setDevisList] = useState([]);
+  const [total, setTotal]         = useState(0);
+  const [loading, setLoading]     = useState(true);
+  const [pg, setPg]               = useState(1);
+  const [filtreStatut, setFiltreStatut] = useState('');
+  const [detail, setDetail]       = useState(null);
+  const [catalogue, setCatalogue] = useState([]);
+  const [msg, setMsg]             = useState('');
+  const EF = { client_nom:'', client_siret:'', client_email:'', objet:'', date_validite:'', notes:'' };
+  const EL = { description:'', quantite:'1', prix_unitaire_ht:'', tva_taux:'20', unite:'unité', catalogue_id:'' };
+  const [form, setForm]    = useState(EF);
+  const [lignes, setLignes] = useState([{...EL}]);
+  const LIMIT = 15;
+  const fmtE = (n) => parseFloat(n||0).toLocaleString('fr-FR',{minimumFractionDigits:2})+' €';
+  const SC = { BROUILLON:{bg:'#f1f5f9',color:'#475569'}, ENVOYE:{bg:'#dbeafe',color:'#1d4ed8'}, ACCEPTE:{bg:'#d1fae5',color:'#065f46'}, REFUSE:{bg:'#fee2e2',color:'#991b1b'}, FACTURE:{bg:'#ede9fe',color:'#5b21b6'}, EXPIRE:{bg:'#fef3c7',color:'#92400e'} };
+
+  const load = useCallback(async (statut=filtreStatut, p=pg) => {
+    setLoading(true);
+    try {
+      const qs = new URLSearchParams({ page:p, limit:LIMIT, ...(statut?{statut}:{}) });
+      const r = await apiCall(`/devis?${qs}`);
+      if (r.ok) { const d=await r.json(); setDevisList(d.data||[]); setTotal(d.total||0); }
+    } catch {}
+    setLoading(false);
+  }, [filtreStatut, pg]);
+
+  useEffect(() => {
+    load();
+    apiCall('/catalogue?limit=200').then(r=>r.ok?r.json():null).then(d=>{ if(d) setCatalogue(d.data||[]); }).catch(()=>{});
+  }, []);
+
+  const addLigne = () => setLignes(l=>[...l,{...EL}]);
+  const remLigne = (i) => setLignes(l=>l.filter((_,idx)=>idx!==i));
+  const updLigne = (i,field,val) => setLignes(prev=>{
+    const n=[...prev]; n[i]={...n[i],[field]:val};
+    if(field==='catalogue_id'&&val){ const a=catalogue.find(x=>String(x.id)===String(val)); if(a) n[i]={...n[i],description:a.nom,prix_unitaire_ht:String(a.prix_ht),tva_taux:String(a.tva_taux),unite:a.unite,catalogue_id:val}; }
+    return n;
+  });
+
+  const totalHT  = lignes.reduce((s,l)=>s+(parseFloat(l.quantite||0)*parseFloat(l.prix_unitaire_ht||0)),0);
+  const totalTTC = lignes.reduce((s,l)=>{ const ht=parseFloat(l.quantite||0)*parseFloat(l.prix_unitaire_ht||0); return s+ht*(1+parseFloat(l.tva_taux||20)/100); },0);
+
+  const handleCreate = async () => {
+    if (!form.client_nom) return setMsg('Nom client requis');
+    if (lignes.some(l=>!l.description||!l.prix_unitaire_ht)) return setMsg('Chaque ligne doit avoir une description et un prix');
+    setMsg('');
+    const body = { ...form, lignes:lignes.map((l,i)=>({ description:l.description, quantite:parseFloat(l.quantite||1), prix_unitaire_ht:parseFloat(l.prix_unitaire_ht||0), tva_taux:parseFloat(l.tva_taux||20), unite:l.unite, catalogue_id:l.catalogue_id||null, ordre:i })) };
+    const r = await apiCall('/devis',{method:'POST',body:JSON.stringify(body)});
+    if (r.ok) { setShowModal(false); setMsg('✓ Devis créé'); setForm(EF); setLignes([{...EL}]); load(); }
+    else { const d=await r.json(); setMsg(d.error||'Erreur'); }
+  };
+
+  const changeStatut = async (id, statut) => {
+    const r = await apiCall(`/devis/${id}/statut`,{method:'PATCH',body:JSON.stringify({statut})});
+    if (r.ok) { setMsg(`✓ Statut → ${statut}`); load(); if(detail?.id===id){ const rd=await apiCall(`/devis/${id}`); if(rd.ok) setDetail(await rd.json()); } }
+    else { const d=await r.json(); setMsg(d.error||'Erreur'); }
+  };
+
+  const convertir = async (id) => {
+    if (!window.confirm('Convertir ce devis en facture ? Action irréversible.')) return;
+    const r = await apiCall(`/devis/${id}/convertir`,{method:'POST'});
+    const d = await r.json();
+    if (r.ok) { setMsg(`✓ Facture ${d.facture.numero} créée`); setDetail(null); load(); }
+    else { setMsg(d.error||'Erreur conversion'); }
+  };
+
+  const deleteDevis = async (id) => {
+    if (!window.confirm('Supprimer ce brouillon ?')) return;
+    const r = await apiCall(`/devis/${id}`,{method:'DELETE'});
+    if (r.ok) { setMsg('✓ Supprimé'); setDetail(null); load(); }
+  };
+
+  const openDetail = async (id) => {
+    const r=await apiCall(`/devis/${id}`);
+    if(r.ok){ setDetail(await r.json()); setShowModal(false); }
+  };
+
+  return (
+    <div className="fade-in" style={{ padding:'28px 32px' }}>
+      {msg && <div style={{ background:msg.startsWith('✓')?'#d1fae5':'#fee2e2', color:msg.startsWith('✓')?'#065f46':'#991b1b', borderRadius:8, padding:'10px 16px', marginBottom:16, fontSize:13 }}>{msg}</div>}
+
+      {/* Filtres */}
+      <div style={{ display:'flex', gap:8, marginBottom:20, flexWrap:'wrap', alignItems:'center' }}>
+        {['','BROUILLON','ENVOYE','ACCEPTE','REFUSE','FACTURE','EXPIRE'].map(s=>(
+          <button key={s||'all'} onClick={()=>{ setFiltreStatut(s); setPg(1); load(s,1); }}
+            style={{ padding:'6px 14px', borderRadius:20, border:'1.5px solid', fontSize:12, fontWeight:600, cursor:'pointer',
+              borderColor:filtreStatut===s?'#4f46e5':'#e2e8f0', background:filtreStatut===s?'#4f46e5':'#fff', color:filtreStatut===s?'#fff':'#64748b' }}>
+            {s||'Tous'}
+          </button>
+        ))}
+        <div style={{ flex:1 }}/>
+        <Btn onClick={()=>{ setForm(EF); setLignes([{...EL}]); setShowModal(true); }}>+ Nouveau devis</Btn>
+      </div>
+
+      {/* Liste */}
+      {loading ? (
+        <div style={{ textAlign:'center', padding:40, color:'#94a3b8' }}>Chargement…</div>
+      ) : devisList.length===0 ? (
+        <div style={{ background:'#fff', borderRadius:12, padding:'48px 32px', textAlign:'center', color:'#94a3b8', boxShadow:'0 1px 4px rgba(0,0,0,0.07)' }}>
+          <div style={{ fontSize:36, marginBottom:12 }}>📝</div>
+          <div style={{ fontWeight:600, color:'#374151', marginBottom:8 }}>Aucun devis</div>
+          <div style={{ fontSize:13 }}>Créez votre premier devis et convertissez-le en facture en un clic.</div>
+          <div style={{ marginTop:16 }}><Btn onClick={()=>{ setForm(EF); setLignes([{...EL}]); setShowModal(true); }}>+ Nouveau devis</Btn></div>
+        </div>
+      ) : (
+        <div style={{ background:'#fff', borderRadius:12, overflow:'hidden', boxShadow:'0 1px 4px rgba(0,0,0,0.07)' }}>
+          <table style={{ width:'100%' }}>
+            <thead><tr style={{ background:'#f8fafc', borderBottom:'1px solid #e2e8f0' }}>
+              {['Numéro','Client','Objet','HT','TTC','Statut','Date',''].map(h=>(
+                <th key={h} style={{ padding:'12px 16px', fontSize:12, fontWeight:600, color:'#64748b', textAlign:['HT','TTC'].includes(h)?'right':'left' }}>{h}</th>
+              ))}
+            </tr></thead>
+            <tbody>{devisList.map((d,i)=>{
+              const sc=SC[d.statut]||SC.BROUILLON;
+              return (
+                <tr key={d.id} style={{ borderBottom:'1px solid #f1f5f9', background:i%2?'#fafafa':'#fff', cursor:'pointer' }} onClick={()=>openDetail(d.id)}>
+                  <td style={{ padding:'12px 16px', fontSize:13, fontWeight:600, color:'#4f46e5' }}>{d.numero}</td>
+                  <td style={{ padding:'12px 16px', fontSize:13 }}>{d.client_nom}</td>
+                  <td style={{ padding:'12px 16px', fontSize:12, color:'#64748b' }}>{(d.objet||'').slice(0,35)}</td>
+                  <td style={{ padding:'12px 16px', fontSize:13, textAlign:'right' }}>{fmtE(d.montant_ht)}</td>
+                  <td style={{ padding:'12px 16px', fontSize:13, fontWeight:600, textAlign:'right' }}>{fmtE(d.montant_ttc)}</td>
+                  <td style={{ padding:'12px 16px' }}><span style={{ background:sc.bg, color:sc.color, padding:'2px 10px', borderRadius:12, fontSize:11, fontWeight:600 }}>{d.statut}</span></td>
+                  <td style={{ padding:'12px 16px', fontSize:12, color:'#94a3b8' }}>{d.date_emission?new Date(d.date_emission).toLocaleDateString('fr-FR'):'—'}</td>
+                  <td style={{ padding:'12px 16px' }} onClick={e=>e.stopPropagation()}>
+                    {d.statut==='BROUILLON'&&<div style={{ display:'flex', gap:4 }}>
+                      <Btn variant="ghost" style={{ padding:'4px 8px', fontSize:11 }} onClick={()=>changeStatut(d.id,'ENVOYE')}>Envoyer</Btn>
+                      <Btn variant="danger" style={{ padding:'4px 8px', fontSize:11 }} onClick={()=>deleteDevis(d.id)}>🗑</Btn>
+                    </div>}
+                    {d.statut==='ENVOYE'&&<div style={{ display:'flex', gap:4 }}>
+                      <Btn variant="success" style={{ padding:'4px 8px', fontSize:11 }} onClick={()=>changeStatut(d.id,'ACCEPTE')}>✓ Accepté</Btn>
+                      <Btn variant="danger" style={{ padding:'4px 8px', fontSize:11 }} onClick={()=>changeStatut(d.id,'REFUSE')}>✕ Refusé</Btn>
+                    </div>}
+                    {d.statut==='ACCEPTE'&&<Btn style={{ padding:'4px 10px', fontSize:11, background:'#7c3aed', color:'#fff' }} onClick={()=>convertir(d.id)}>→ Facture</Btn>}
+                  </td>
+                </tr>
+              );
+            })}</tbody>
+          </table>
+          {total>LIMIT&&(
+            <div style={{ padding:'12px 16px', display:'flex', gap:8, alignItems:'center', borderTop:'1px solid #e2e8f0' }}>
+              <Btn variant="ghost" style={{ padding:'5px 12px' }} disabled={pg===1} onClick={()=>{ const p=pg-1; setPg(p); load(filtreStatut,p); }}>←</Btn>
+              <span style={{ fontSize:13, color:'#64748b' }}>Page {pg} / {Math.ceil(total/LIMIT)}</span>
+              <Btn variant="ghost" style={{ padding:'5px 12px' }} disabled={pg>=Math.ceil(total/LIMIT)} onClick={()=>{ const p=pg+1; setPg(p); load(filtreStatut,p); }}>→</Btn>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Modal création */}
+      {showModal&&(
+        <Modal title="Nouveau devis" onClose={()=>setShowModal(false)}>
+          <div style={{ display:'flex', flexDirection:'column', gap:12, maxHeight:'68vh', overflowY:'auto', paddingRight:4 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <Field label="Nom client *"><input style={inputStyle} value={form.client_nom} onChange={e=>setForm({...form,client_nom:e.target.value})} placeholder="Acme Corp" /></Field>
+              <Field label="SIRET client"><input style={inputStyle} value={form.client_siret} onChange={e=>setForm({...form,client_siret:e.target.value.replace(/\D/g,'').slice(0,14)})} placeholder="14 chiffres" /></Field>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <Field label="Email client"><input style={inputStyle} type="email" value={form.client_email} onChange={e=>setForm({...form,client_email:e.target.value})} placeholder="contact@client.fr" /></Field>
+              <Field label="Valide jusqu'au"><input style={inputStyle} type="date" value={form.date_validite} onChange={e=>setForm({...form,date_validite:e.target.value})} /></Field>
+            </div>
+            <Field label="Objet"><input style={inputStyle} value={form.objet} onChange={e=>setForm({...form,objet:e.target.value})} placeholder="Prestation de conseil Q3 2026" /></Field>
+
+            <div>
+              <div style={{ fontSize:13, fontWeight:600, color:'#374151', marginBottom:8 }}>Lignes</div>
+              {lignes.map((l,i)=>(
+                <div key={i} style={{ background:'#f8fafc', borderRadius:8, padding:'10px 12px', marginBottom:8 }}>
+                  {catalogue.length>0&&(
+                    <select style={{ ...inputStyle, marginBottom:6, fontSize:12 }} value={l.catalogue_id||''} onChange={e=>updLigne(i,'catalogue_id',e.target.value)}>
+                      <option value="">— Choisir du catalogue —</option>
+                      {catalogue.map(a=><option key={a.id} value={a.id}>{a.nom} — {a.prix_ht} €/{a.unite}</option>)}
+                    </select>
+                  )}
+                  <input style={{ ...inputStyle, marginBottom:6 }} placeholder="Description *" value={l.description} onChange={e=>updLigne(i,'description',e.target.value)} />
+                  <div style={{ display:'grid', gridTemplateColumns:'80px 130px 100px 80px auto', gap:6, alignItems:'center' }}>
+                    <input style={inputStyle} type="number" min="0.001" step="any" placeholder="Qté" value={l.quantite} onChange={e=>updLigne(i,'quantite',e.target.value)} />
+                    <input style={inputStyle} type="number" min="0" step="0.01" placeholder="Prix HT *" value={l.prix_unitaire_ht} onChange={e=>updLigne(i,'prix_unitaire_ht',e.target.value)} />
+                    <select style={inputStyle} value={l.tva_taux} onChange={e=>updLigne(i,'tva_taux',e.target.value)}>
+                      <option value="0">0 %</option><option value="5.5">5,5 %</option><option value="10">10 %</option><option value="20">20 %</option>
+                    </select>
+                    <input style={inputStyle} placeholder="Unité" value={l.unite} onChange={e=>updLigne(i,'unite',e.target.value)} />
+                    {lignes.length>1&&<Btn variant="danger" style={{ padding:'6px 8px', fontSize:11 }} onClick={()=>remLigne(i)}>✕</Btn>}
+                  </div>
+                </div>
+              ))}
+              <Btn variant="ghost" style={{ width:'100%' }} onClick={addLigne}>+ Ajouter une ligne</Btn>
+            </div>
+
+            <div style={{ background:'#f8fafc', borderRadius:8, padding:'12px 16px', fontSize:13 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                <span style={{ color:'#64748b' }}>Total HT</span><span style={{ fontWeight:600 }}>{totalHT.toFixed(2)} €</span>
+              </div>
+              <div style={{ display:'flex', justifyContent:'space-between' }}>
+                <span style={{ color:'#64748b' }}>Total TTC</span><span style={{ fontWeight:700, color:'#4f46e5', fontSize:15 }}>{totalTTC.toFixed(2)} €</span>
+              </div>
+            </div>
+
+            <Field label="Notes"><textarea style={{ ...inputStyle, minHeight:56, resize:'vertical' }} value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Conditions, délais…" /></Field>
+            {msg&&!msg.startsWith('✓')&&<div style={{ color:'#dc2626', fontSize:13 }}>{msg}</div>}
+            <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
+              <Btn variant="ghost" onClick={()=>setShowModal(false)}>Annuler</Btn>
+              <Btn onClick={handleCreate}>Créer le devis</Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal détail */}
+      {detail&&(
+        <Modal title={`Devis ${detail.numero}`} onClose={()=>setDetail(null)}>
+          <div style={{ display:'flex', flexDirection:'column', gap:14, maxHeight:'70vh', overflowY:'auto', paddingRight:4 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, fontSize:13 }}>
+              <div><span style={{ color:'#64748b' }}>Client :</span> <strong>{detail.client_nom}</strong></div>
+              <div><span style={{ color:'#64748b' }}>Statut :</span> <span style={{ background:(SC[detail.statut]||SC.BROUILLON).bg, color:(SC[detail.statut]||SC.BROUILLON).color, padding:'2px 10px', borderRadius:12, fontSize:11, fontWeight:600 }}>{detail.statut}</span></div>
+              {detail.objet&&<div style={{ gridColumn:'1/-1' }}><span style={{ color:'#64748b' }}>Objet :</span> {detail.objet}</div>}
+              {detail.client_email&&<div><span style={{ color:'#64748b' }}>Email :</span> {detail.client_email}</div>}
+              {detail.date_validite&&<div><span style={{ color:'#64748b' }}>Valide jusqu'au :</span> {new Date(detail.date_validite).toLocaleDateString('fr-FR')}</div>}
+            </div>
+            <div>
+              <div style={{ fontSize:12, fontWeight:600, color:'#64748b', marginBottom:6 }}>LIGNES</div>
+              <table style={{ width:'100%', fontSize:12 }}>
+                <thead><tr style={{ background:'#f8fafc' }}>
+                  {['Description','Qté','Prix HT','TVA','Total HT'].map(h=><th key={h} style={{ padding:'6px 10px', fontWeight:600, color:'#374151', textAlign:h==='Total HT'?'right':'left' }}>{h}</th>)}
+                </tr></thead>
+                <tbody>{(detail.lignes||[]).map(l=>(
+                  <tr key={l.id} style={{ borderTop:'1px solid #f1f5f9' }}>
+                    <td style={{ padding:'6px 10px' }}>{l.description}</td>
+                    <td style={{ padding:'6px 10px' }}>{l.quantite} {l.unite}</td>
+                    <td style={{ padding:'6px 10px' }}>{parseFloat(l.prix_unitaire_ht).toFixed(2)} €</td>
+                    <td style={{ padding:'6px 10px' }}>{l.tva_taux} %</td>
+                    <td style={{ padding:'6px 10px', textAlign:'right', fontWeight:600 }}>{parseFloat(l.montant_ht).toFixed(2)} €</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+            <div style={{ background:'#f8fafc', borderRadius:8, padding:'12px 16px', fontSize:13 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}><span style={{ color:'#64748b' }}>Total HT</span><span style={{ fontWeight:600 }}>{fmtE(detail.montant_ht)}</span></div>
+              <div style={{ display:'flex', justifyContent:'space-between' }}><span style={{ color:'#64748b' }}>Total TTC</span><span style={{ fontWeight:700, fontSize:15, color:'#4f46e5' }}>{fmtE(detail.montant_ttc)}</span></div>
+            </div>
+            {detail.notes&&<div style={{ fontSize:12, color:'#64748b', fontStyle:'italic', padding:'8px 12px', background:'#fffbeb', borderRadius:8 }}>{detail.notes}</div>}
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+              {detail.statut==='BROUILLON'&&<><Btn onClick={()=>{changeStatut(detail.id,'ENVOYE');setDetail(null);}}>📤 Marquer envoyé</Btn><Btn variant="danger" onClick={()=>{deleteDevis(detail.id);}}>🗑 Supprimer</Btn></>}
+              {detail.statut==='ENVOYE'&&<><Btn variant="success" onClick={()=>{changeStatut(detail.id,'ACCEPTE');setDetail(null);}}>✓ Accepté</Btn><Btn variant="danger" onClick={()=>{changeStatut(detail.id,'REFUSE');setDetail(null);}}>✕ Refusé</Btn><Btn variant="ghost" onClick={()=>{changeStatut(detail.id,'EXPIRE');setDetail(null);}}>⏰ Expiré</Btn></>}
+              {detail.statut==='ACCEPTE'&&<Btn style={{ background:'#7c3aed', color:'#fff' }} onClick={()=>{convertir(detail.id);}}>🧾 Convertir en facture</Btn>}
+              {detail.facture_id&&<div style={{ fontSize:12, color:'#5b21b6', background:'#ede9fe', padding:'6px 12px', borderRadius:8 }}>✓ Facture ID #{detail.facture_id}</div>}
+              <Btn variant="ghost" onClick={()=>setDetail(null)} style={{ marginLeft:'auto' }}>Fermer</Btn>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+
 // ─── Écran sélection de plan (affiché après le premier login) ────────────────
 function PlanSelectionScreen({ company, onSkip }) {
   const [loading, setLoading] = useState('');
@@ -2986,6 +3423,10 @@ export default function App() {
         return <SectionDepenses depenses={depenses} setDepenses={setDepenses} company={company} showModal={showModal} setShowModal={setShowModal} />;
       case 'tva':
         return <SectionTVA factures={factures} depenses={depenses} company={company} />;
+      case 'devis':
+        return <SectionDevis company={company} showModal={showModal} setShowModal={setShowModal} />;
+      case 'catalogue':
+        return <SectionCatalogue showModal={showModal} setShowModal={setShowModal} />;
       case 'recurrentes':
         return <SectionRecurrentes company={company} showModal={showModal} setShowModal={setShowModal} />;
       case 'tresorerie':

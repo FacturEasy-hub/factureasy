@@ -432,6 +432,14 @@ app.use('/relances', require('./routes/relances'));
 
 app.use('/factures/recurrentes', require('./routes/recurrentes'));
 
+// ─── Routes Catalogue produits/services ──────────────────────────────────────
+
+app.use('/catalogue', require('./routes/catalogue'));
+
+// ─── Routes Devis ─────────────────────────────────────────────────────────────
+
+app.use('/devis', require('./routes/devis'));
+
 // ─── Routes Comptable (invitations + login read-only) ────────────────────────
 
 const { router: comptableRouter, readOnly } = require('./routes/comptable');
