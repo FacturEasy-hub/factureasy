@@ -499,6 +499,11 @@ app.use('/catalogue', require('./routes/catalogue'));
 
 app.use('/devis', require('./routes/devis'));
 
+app.use('/e-reporting', require('./routes/e-reporting'));
+app.use('/journal',     require('./routes/journal'));
+app.use('/rapports',    require('./routes/rapports'));
+app.use('/crm',         require('./routes/crm'));
+
 // ─── Routes Comptable (invitations + login read-only) ────────────────────────
 
 const { router: comptableRouter, readOnly } = require('./routes/comptable');

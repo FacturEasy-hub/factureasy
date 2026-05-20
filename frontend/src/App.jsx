@@ -1,6 +1,45 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { WidgetFluxTresorerie, WidgetEntonnoirFactures, WidgetTopClients } from './DashboardWidgets';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+// ─── Error Boundary ───────────────────────────────────────────────────────────
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorId: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    const errorId = 'ERR-' + Date.now().toString(36).toUpperCase();
+    this.setState({ errorId });
+    console.error('[FacturEasy ErrorBoundary]', errorId, error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'100vh', gap:16, padding:32, fontFamily:'system-ui,sans-serif' }}>
+          <div style={{ fontSize:48 }}>⚠️</div>
+          <h2 style={{ margin:0, color:'#1a1a2e' }}>Une erreur est survenue</h2>
+          <p style={{ color:'#666', textAlign:'center', maxWidth:400 }}>
+            L'application a rencontré un problème inattendu. Veuillez rafraîchir la page.
+          </p>
+          {this.state.errorId && (
+            <code style={{ background:'#f5f5f5', padding:'4px 12px', borderRadius:4, fontSize:12, color:'#888' }}>
+              Référence : {this.state.errorId}
+            </code>
+          )}
+          <button onClick={() => window.location.reload()} style={{ padding:'10px 24px', background:'#6366f1', color:'#fff', border:'none', borderRadius:8, cursor:'pointer', fontSize:14 }}>
+            Rafraîchir la page
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // ─── Données mock ────────────────────────────────────────────────────────────
 const MOCK_COMPANY = {
@@ -829,6 +868,13 @@ function SectionDashboard({ factures, depenses, onNav }) {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Widgets Dashboard — données live depuis l'API */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginTop: 28 }}>
+        <WidgetFluxTresorerie />
+        <WidgetEntonnoirFactures />
+        <WidgetTopClients />
       </div>
     </div>
   );
@@ -3441,19 +3487,26 @@ export default function App() {
   };
 
   if (!company) {
-    return <LoginPage onLogin={handleLogin} />;
+    return (
+      <ErrorBoundary>
+        <LoginPage onLogin={handleLogin} />
+      </ErrorBoundary>
+    );
   }
 
   if (showPlanSelection) {
     return (
-      <PlanSelectionScreen
-        company={company}
-        onSkip={() => setShowPlanSelection(false)}
-      />
+      <ErrorBoundary>
+        <PlanSelectionScreen
+          company={company}
+          onSkip={() => setShowPlanSelection(false)}
+        />
+      </ErrorBoundary>
     );
   }
 
   return (
+    <ErrorBoundary>
     <div style={{ display: 'flex', height: '100vh', background: '#f8fafc', fontFamily: "'Inter', system-ui, sans-serif" }}>
       {/* Sidebar */}
       <aside style={{ width: 220, background: '#fff', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', padding: '20px 0' }}>
@@ -3546,5 +3599,6 @@ export default function App() {
         <OnboardingChecklist onClose={() => setShowOnboarding(false)} />
       )}
     </div>
+    </ErrorBoundary>
   );
 }

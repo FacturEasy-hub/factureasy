@@ -1,0 +1,62 @@
+[
+  {
+    "id": "ereport-1",
+    "question": "Qu'est-ce que l'e-reporting ?",
+    "reponse": "L'e-reporting est l'obligation de transmettre à la DGFiP les données relatives à vos transactions qui ne sont pas couvertes par la e-facture B2B : ventes à des particuliers (B2C), prestations pour des clients étrangers, opérations avec des entités non assujetties à la TVA. Ce n'est pas une facture électronique, mais une déclaration de données de transaction.",
+    "contexte": "module_e_reporting"
+  },
+  {
+    "id": "ereport-2",
+    "question": "Qui est concerné par l'e-reporting ?",
+    "reponse": "Toute entreprise assujettie à la TVA réalisant des transactions hors du circuit de la e-facture B2B est concernée. Cela inclut : les ventes à des particuliers (B2C), les factures adressées à des clients étrangers (dans ou hors UE), les prestations à des associations ou organismes non assujettis à la TVA, et les ventes sur marketplace. Les entreprises en franchise de TVA en sont exonérées.",
+    "contexte": "module_e_reporting"
+  },
+  {
+    "id": "ereport-3",
+    "question": "Quels sont les délais pour transmettre mon e-reporting ?",
+    "reponse": "Si vous êtes au régime mensuel de TVA : vous devez déclarer les transactions du mois M avant le 10 du mois M+1. Si vous êtes au régime trimestriel : vous devez déclarer avant le 25 du mois suivant la fin du trimestre (25 avril pour le T1, 25 juillet pour le T2, etc.). En cas de retard, des pénalités peuvent s'appliquer.",
+    "contexte": "module_e_reporting"
+  },
+  {
+    "id": "ereport-4",
+    "question": "Comment transmettre mon e-reporting dans FacturEasy ?",
+    "reponse": "Depuis le menu principal, ouvrez l'onglet 'E-reporting'. Sélectionnez la période concernée, vérifiez la liste des transactions non-B2B détectées automatiquement, ajoutez-en si nécessaire, puis cliquez sur 'Transmettre à la DGFiP'. Vous recevez immédiatement un accusé de réception archivé dans l'onglet Historique.",
+    "contexte": "module_e_reporting"
+  },
+  {
+    "id": "ereport-5",
+    "question": "Que faire si j'ai fait une erreur dans une déclaration déjà transmise ?",
+    "reponse": "Vous pouvez émettre une déclaration rectificative pour la même période. Dans FacturEasy, allez dans E-reporting > Historique, sélectionnez la déclaration erronée et cliquez sur 'Émettre une rectification'. La déclaration rectificative remplace intégralement la précédente auprès de la DGFiP. Il n'y a pas de délai maximum pour rectifier, mais plus tôt vous agissez, mieux c'est.",
+    "contexte": "module_e_reporting"
+  },
+  {
+    "id": "ereport-6",
+    "question": "Quelles sont les sanctions en cas de non-déclaration ?",
+    "reponse": "L'amende légale est de 15 € par transaction non déclarée, avec un plafond de 45 000 € par an. En cas de manquement répété ou de mauvaise foi constatée, des contrôles fiscaux peuvent être déclenchés. La régularisation spontanée (déclaration tardive) reste possible mais n'efface pas les pénalités déjà encourues.",
+    "contexte": "module_e_reporting"
+  },
+  {
+    "id": "ereport-7",
+    "question": "Quelle est la différence entre l'e-reporting et la déclaration de TVA (CA3) ?",
+    "reponse": "Ce sont deux obligations fiscales distinctes. La déclaration de TVA (CA3 ou CA12) sert à calculer et payer la TVA collectée et déductible sur votre chiffre d'affaires. L'e-reporting sert à transmettre les données brutes de vos transactions à la DGFiP, pour lui permettre de croiser les informations fiscales entre entreprises. Remplir votre CA3 ne vous dispense pas de l'e-reporting, et inversement.",
+    "contexte": "module_e_reporting"
+  },
+  {
+    "id": "ereport-8",
+    "question": "Mes ventes sur marketplace (Amazon, Etsy, Cdiscount…) sont-elles soumises à l'e-reporting ?",
+    "reponse": "Oui, si vous êtes assujetti à la TVA. Les ventes réalisées via une marketplace à des particuliers constituent des transactions B2C soumises à l'e-reporting. Attention : même si la marketplace collecte la TVA pour votre compte (ce qui est le cas pour certaines plateformes depuis 2021), vous restez tenu de déclarer vos données de transaction à la DGFiP de votre côté.",
+    "contexte": "module_e_reporting"
+  },
+  {
+    "id": "ereport-9",
+    "question": "Mes exportations hors Union Européenne sont-elles concernées par l'e-reporting ?",
+    "reponse": "Oui. Les exportations hors UE ne passent pas par le circuit de la e-facture B2B française et doivent donc faire l'objet d'un e-reporting. Cela s'applique que votre client étranger soit une entreprise ou un particulier. Les livraisons intracommunautaires (dans l'UE) sont également concernées si elles ne relèvent pas du circuit e-facture national.",
+    "contexte": "module_e_reporting"
+  },
+  {
+    "id": "ereport-10",
+    "question": "Puis-je corriger une déclaration e-reporting après la date limite ?",
+    "reponse": "Oui. Il n'existe pas de délai légal maximal pour émettre une déclaration rectificative. Vous pouvez corriger une déclaration passée à tout moment depuis E-reporting > Historique dans FacturEasy. Cependant, les pénalités éventuelles liées à la déclaration initiale incorrecte ou tardive restent dues. En cas de doute sur votre situation, consultez votre expert-comptable.",
+    "contexte": "module_e_reporting"
+  }
+]
